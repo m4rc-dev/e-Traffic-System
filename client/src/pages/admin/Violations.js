@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { violationsAPI, adminAPI } from '../../services/api';
-import { Search, Filter, Download, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Filter, Download, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 
@@ -22,10 +22,14 @@ const Violations = () => {
   const [isExporting, setIsExporting] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: violationsResponse, isLoading, error } = useQuery({
+  const { data: violationsResponse, isLoading, error, refetch } = useQuery({
     queryKey: ['violations', filters],
     queryFn: () => violationsAPI.getViolations(filters),
     placeholderData: (previousData) => previousData,
+    retry: 2,
+    onError: (err) => {
+      console.error('Failed to load violations:', err);
+    }
   });
 
   // Query for dashboard stats to get accurate counts
@@ -34,6 +38,20 @@ const Violations = () => {
     queryFn: () => adminAPI.getDashboard(),
     staleTime: 30000, // 30 seconds
   });
+
+  // Query for enforcers data for filtering
+  const { data: enforcersData } = useQuery({
+    queryKey: ['enforcers'],
+    queryFn: () => adminAPI.getEnforcers(),
+    staleTime: 60000, // 1 minute
+    retry: 2,
+    onError: (err) => {
+      console.error('Failed to load enforcers:', err);
+    }
+  });
+
+  // Extract enforcers from response
+  const enforcers = enforcersData?.data?.data?.enforcers || [];
 
   // Extract data from response
   const data = violationsResponse?.data?.data;
@@ -123,7 +141,8 @@ const Violations = () => {
       const response = await violationsAPI.exportViolations(exportFilters);
       console.log('Export response status:', response.status);
       
-      if (!response.ok) {
+      // Check for successful response
+      if (response.status !== 200) {
         const errorText = await response.text();
         console.error('Export error response:', errorText);
         throw new Error(`Export failed: ${response.status} - ${errorText}`);
@@ -203,7 +222,15 @@ const Violations = () => {
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-danger-600">Failed to load violations</p>
+        <div className="text-danger-600 mb-4">Failed to load violations</div>
+        <p className="text-gray-600 mb-6">Request failed with status code {error?.response?.status || 500}</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          <RefreshCw className="h-4 w-4 mr-2 inline" />
+          Retry
+        </button>
       </div>
     );
   }
@@ -486,6 +513,24 @@ const Violations = () => {
                 value={filters.end_date}
                 onChange={(e) => handleFilterChange('end_date', e.target.value)}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Enforcer
+              </label>
+              <select
+                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                value={filters.enforcer_id}
+                onChange={(e) => handleFilterChange('enforcer_id', e.target.value)}
+              >
+                <option value="">All Enforcers</option>
+                {enforcers.map(enforcer => (
+                  <option key={enforcer.id} value={enforcer.id}>
+                    {enforcer.full_name} ({enforcer.badge_number})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

@@ -143,17 +143,13 @@ router.get('/enforcers', async (req, res) => {
       params.push(status === 'active' ? 1 : 0);
     }
 
-    // Aggressive debugging
-    console.log('=== ENFORCERS DEBUG START ===');
-    console.log('req.query:', req.query);
-    console.log('page:', page, 'limit:', limit);
-    console.log('validLimit:', validLimit, 'type:', typeof validLimit, 'isNaN:', isNaN(validLimit));
-    console.log('validPage:', validPage, 'type:', typeof validPage, 'isNaN:', isNaN(validPage));
-    console.log('offset:', offset, 'type:', typeof offset, 'isNaN:', isNaN(offset));
-    console.log('params array:', params);
-    console.log('final params array:', [...params, Number(validLimit), Number(offset)]);
-    console.log('final param types:', [...params, Number(validLimit), Number(offset)].map(p => typeof p));
-    console.log('=== ENFORCERS DEBUG END ===');
+    // Debug logging
+    console.log('Enforcers query:', {
+      page: validPage,
+      limit: validLimit,
+      offset,
+      paramsCount: params.length
+    });
     
     // Get enforcers
     const enforcers = await query(`
@@ -161,8 +157,8 @@ router.get('/enforcers', async (req, res) => {
       FROM users 
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...params, Number(validLimit), Number(offset)]);
+      LIMIT ${validLimit} OFFSET ${offset}
+    `, params);
 
     // Get total count
     const [totalCount] = await query(`

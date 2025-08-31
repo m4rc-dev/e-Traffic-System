@@ -35,11 +35,12 @@ const getConnection = () => {
 };
 
 const query = async (sql, params = []) => {
+  let sanitizedParams = [];
   try {
     const connection = await getConnection();
     
     // Ensure all parameters are properly defined and converted to appropriate types
-    const sanitizedParams = params.map((param, index) => {
+    sanitizedParams = params.map((param, index) => {
       if (param === undefined || param === null) {
         console.warn(`Warning: Parameter at index ${index} is ${param}, converting to null`);
         return null;
@@ -59,9 +60,7 @@ const query = async (sql, params = []) => {
       return param;
     });
     
-    console.log('Executing query:', sql);
-    console.log('Query parameters:', sanitizedParams);
-    console.log('Parameter types:', sanitizedParams.map(p => typeof p));
+    // Query execution logging (minimal)
     
     const [rows] = await connection.execute(sql, sanitizedParams);
     return rows;

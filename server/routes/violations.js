@@ -87,16 +87,13 @@ router.get('/', async (req, res) => {
       params.push(violation_type);
     }
 
-    // Aggressive debugging
-    console.log('=== VIOLATIONS DEBUG START ===');
-    console.log('req.query:', req.query);
-    console.log('page:', page, 'limit:', limit);
-    console.log('validLimit:', validLimit, 'type:', typeof validLimit);
-    console.log('validPage:', validPage, 'type:', typeof validPage);
-    console.log('offset:', offset, 'type:', typeof offset);
-    console.log('params array:', params);
-    console.log('final params array:', [...params, validLimit, offset]);
-    console.log('=== VIOLATIONS DEBUG END ===');
+    // Debug logging
+    console.log('Violations query:', {
+      page: validPage,
+      limit: validLimit,
+      offset,
+      paramsCount: params.length
+    });
     
     // Get violations with enforcer info
     const violations = await query(`
@@ -108,8 +105,8 @@ router.get('/', async (req, res) => {
       JOIN users u ON v.enforcer_id = u.id
       ${whereClause}
       ORDER BY v.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...params, Number(validLimit), Number(offset)]);
+      LIMIT ${validLimit} OFFSET ${offset}
+    `, params);
 
     // Get total count
     const [totalCount] = await query(`
