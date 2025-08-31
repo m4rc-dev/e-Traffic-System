@@ -63,12 +63,12 @@ Thumbs.db
 .git
 .gitignore
 
-# Docker
-Dockerfile*
-.dockerignore
+# Docker (keep for build context)
+# Dockerfile*
+# .dockerignore
 
-# Railway
-railway.json
+# Railway (keep for build context)
+# railway.json
 
 # Vercel
 .vercel
