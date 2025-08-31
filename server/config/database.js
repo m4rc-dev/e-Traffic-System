@@ -12,14 +12,7 @@ const connectDB = async () => {
       port: process.env.DB_PORT || 3306,
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0,
-      acquireTimeout: 60000,
-      timeout: 60000,
-      reconnect: true,
-      // Remove problematic options that cause warnings
-      // acquireTimeout: 60000,
-      // timeout: 60000,
-      // reconnect: true
+      queueLimit: 0
     });
 
     // Test the connection
@@ -45,17 +38,30 @@ const query = async (sql, params = []) => {
   try {
     const connection = await getConnection();
     
-    // Ensure all parameters are properly defined
+    // Ensure all parameters are properly defined and converted to appropriate types
     const sanitizedParams = params.map((param, index) => {
       if (param === undefined || param === null) {
         console.warn(`Warning: Parameter at index ${index} is ${param}, converting to null`);
         return null;
+      }
+      // Convert numeric strings to numbers for LIMIT/OFFSET
+      if (typeof param === 'string' && !isNaN(param) && param.trim() !== '') {
+        const num = parseInt(param);
+        if (!isNaN(num)) {
+          return num;
+        }
+      }
+      // Ensure numbers are actually numbers
+      if (typeof param === 'number' && isNaN(param)) {
+        console.warn(`Warning: Parameter at index ${index} is NaN, converting to 0`);
+        return 0;
       }
       return param;
     });
     
     console.log('Executing query:', sql);
     console.log('Query parameters:', sanitizedParams);
+    console.log('Parameter types:', sanitizedParams.map(p => typeof p));
     
     const [rows] = await connection.execute(sql, sanitizedParams);
     return rows;
@@ -63,6 +69,7 @@ const query = async (sql, params = []) => {
     console.error('Database query error:', error);
     console.error('SQL:', sql);
     console.error('Parameters:', params);
+    console.error('Sanitized parameters:', sanitizedParams);
     throw error;
   }
 };

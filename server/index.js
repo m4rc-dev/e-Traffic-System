@@ -37,6 +37,9 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve static files from the React build
+app.use(express.static('public'));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -50,7 +53,7 @@ app.get('/health', (req, res) => {
 app.get('/health/db', async (req, res) => {
   try {
     const { query } = require('./config/database');
-    const result = await query('SELECT 1 as test, NOW() as current_time, DATABASE() as database_name');
+    const result = await query('SELECT 1 as test, NOW() as current_timestamp, DATABASE() as database_name');
     res.json({
       status: 'OK',
       message: 'Database connection successful',
@@ -78,12 +81,9 @@ app.use('/api/sms', smsRoutes);
 // Error handling middleware
 app.use(errorHandler);
 
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ 
-    error: 'Route not found',
-    message: `Cannot ${req.method} ${req.originalUrl}`
-  });
+// Serve React app for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile('index.html', { root: 'public' });
 });
 
 // Start server

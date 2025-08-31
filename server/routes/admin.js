@@ -114,6 +114,11 @@ router.get('/enforcers', async (req, res) => {
     const validPage = Math.max(1, parseInt(page) || 1);
     const offset = (validPage - 1) * validLimit;
     
+    // Final validation to ensure we have valid numbers
+    if (isNaN(validLimit) || isNaN(validPage) || isNaN(offset)) {
+      throw new Error(`Invalid pagination parameters: limit=${validLimit}, page=${validPage}, offset=${offset}`);
+    }
+    
     // Double-check types
     if (typeof validLimit !== 'number' || isNaN(validLimit)) {
       throw new Error(`Invalid limit: ${limit}, converted to: ${validLimit}`);
@@ -142,11 +147,12 @@ router.get('/enforcers', async (req, res) => {
     console.log('=== ENFORCERS DEBUG START ===');
     console.log('req.query:', req.query);
     console.log('page:', page, 'limit:', limit);
-    console.log('validLimit:', validLimit, 'type:', typeof validLimit);
-    console.log('validPage:', validPage, 'type:', typeof validPage);
-    console.log('offset:', offset, 'type:', typeof offset);
+    console.log('validLimit:', validLimit, 'type:', typeof validLimit, 'isNaN:', isNaN(validLimit));
+    console.log('validPage:', validPage, 'type:', typeof validPage, 'isNaN:', isNaN(validPage));
+    console.log('offset:', offset, 'type:', typeof offset, 'isNaN:', isNaN(offset));
     console.log('params array:', params);
-    console.log('final params array:', [...params, validLimit, offset]);
+    console.log('final params array:', [...params, Number(validLimit), Number(offset)]);
+    console.log('final param types:', [...params, Number(validLimit), Number(offset)].map(p => typeof p));
     console.log('=== ENFORCERS DEBUG END ===');
     
     // Get enforcers
@@ -156,7 +162,7 @@ router.get('/enforcers', async (req, res) => {
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `, [...params, validLimit, offset]);
+    `, [...params, Number(validLimit), Number(offset)]);
 
     // Get total count
     const [totalCount] = await query(`

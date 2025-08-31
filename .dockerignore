@@ -25,10 +25,8 @@ pids
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
+# Coverage directory
 coverage
-
-# nyc test coverage
 .nyc_output
 
 # Dependency directories
@@ -45,9 +43,6 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
-
-# dotenv environment variables file
-.env
 
 # IDE files
 .vscode
@@ -69,8 +64,15 @@ Thumbs.db
 .gitignore
 
 # Docker
-Dockerfile
+Dockerfile*
 .dockerignore
 
 # Railway
 railway.json
+
+# Vercel
+.vercel
+vercel.json
+
+# Netlify
+netlify.toml

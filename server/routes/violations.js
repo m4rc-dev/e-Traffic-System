@@ -31,6 +31,11 @@ router.get('/', async (req, res) => {
     const validPage = Math.max(1, parseInt(page) || 1);
     const offset = (validPage - 1) * validLimit;
     
+    // Final validation to ensure we have valid numbers
+    if (isNaN(validLimit) || isNaN(validPage) || isNaN(offset)) {
+      throw new Error(`Invalid pagination parameters: limit=${validLimit}, page=${validPage}, offset=${offset}`);
+    }
+    
     // Double-check types
     if (typeof validLimit !== 'number' || isNaN(validLimit)) {
       throw new Error(`Invalid limit: ${limit}, converted to: ${validLimit}`);
@@ -104,7 +109,7 @@ router.get('/', async (req, res) => {
       ${whereClause}
       ORDER BY v.created_at DESC
       LIMIT ? OFFSET ?
-    `, [...params, validLimit, offset]);
+    `, [...params, Number(validLimit), Number(offset)]);
 
     // Get total count
     const [totalCount] = await query(`
