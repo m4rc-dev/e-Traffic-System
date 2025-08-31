@@ -1,49 +1,18 @@
-# Multi-stage build for e-Traffic System
+# Simple server Dockerfile for e-Traffic System (Railway Deployment)
 
-# Stage 1: Build the React client
-FROM node:18 AS client-builder
-
-# Set working directory for client
-WORKDIR /app/client
-
-# Copy client package files
-COPY client/package*.json ./
-
-# Install client dependencies
-RUN npm ci
-
-# Copy client source code
-COPY client/ ./
-
-# Build the React app
-RUN npm run build
-
-# Stage 2: Build the server
-FROM node:18-alpine AS server-builder
-
-# Set working directory for server
-WORKDIR /app
-
-# Copy server package files
-COPY server/package*.json ./
-
-# Install server dependencies
-RUN npm ci --only=production
-
-# Copy server source code
-COPY server/ ./
-
-# Stage 3: Final production image
 FROM node:18-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy built client files from client-builder stage
-COPY --from=client-builder /app/client/build ./public
+# Copy package files
+COPY package*.json ./
 
-# Copy server files from server-builder stage
-COPY --from=server-builder /app ./
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy server source code
+COPY . ./
 
 # Create a non-root user
 RUN addgroup -g 1001 -S nodejs
