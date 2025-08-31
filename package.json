@@ -1,0 +1,20 @@
+{
+  "name": "e-traffic-system",
+  "version": "1.0.0",
+  "description": "Centralized platform for managing traffic violation records captured by handheld IoT devices",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "setup-db": "cd server && npm run setup-db"
+  },
+  "keywords": ["traffic", "violation", "iot", "management", "dashboard"],
+  "author": "e-Traffic System",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
