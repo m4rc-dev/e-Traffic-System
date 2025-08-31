@@ -15,7 +15,11 @@ const connectDB = async () => {
       queueLimit: 0,
       acquireTimeout: 60000,
       timeout: 60000,
-      reconnect: true
+      reconnect: true,
+      // Remove problematic options that cause warnings
+      // acquireTimeout: 60000,
+      // timeout: 60000,
+      // reconnect: true
     });
 
     // Test the connection
@@ -40,10 +44,25 @@ const getConnection = () => {
 const query = async (sql, params = []) => {
   try {
     const connection = await getConnection();
-    const [rows] = await connection.execute(sql, params);
+    
+    // Ensure all parameters are properly defined
+    const sanitizedParams = params.map((param, index) => {
+      if (param === undefined || param === null) {
+        console.warn(`Warning: Parameter at index ${index} is ${param}, converting to null`);
+        return null;
+      }
+      return param;
+    });
+    
+    console.log('Executing query:', sql);
+    console.log('Query parameters:', sanitizedParams);
+    
+    const [rows] = await connection.execute(sql, sanitizedParams);
     return rows;
   } catch (error) {
     console.error('Database query error:', error);
+    console.error('SQL:', sql);
+    console.error('Parameters:', params);
     throw error;
   }
 };

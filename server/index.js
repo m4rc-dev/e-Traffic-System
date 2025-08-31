@@ -46,6 +46,28 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Database health check endpoint
+app.get('/health/db', async (req, res) => {
+  try {
+    const { query } = require('./config/database');
+    const result = await query('SELECT 1 as test, NOW() as current_time, DATABASE() as database_name');
+    res.json({
+      status: 'OK',
+      message: 'Database connection successful',
+      data: result[0],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Database connection failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);

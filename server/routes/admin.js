@@ -108,7 +108,22 @@ router.get('/next-badge-number', async (req, res) => {
 router.get('/enforcers', async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', status = '' } = req.query;
-    const offset = (page - 1) * limit;
+    
+    // Ensure limit and page are valid numbers with explicit type conversion
+    const validLimit = Math.max(1, Math.min(100, parseInt(limit) || 10));
+    const validPage = Math.max(1, parseInt(page) || 1);
+    const offset = (validPage - 1) * validLimit;
+    
+    // Double-check types
+    if (typeof validLimit !== 'number' || isNaN(validLimit)) {
+      throw new Error(`Invalid limit: ${limit}, converted to: ${validLimit}`);
+    }
+    if (typeof validPage !== 'number' || isNaN(validPage)) {
+      throw new Error(`Invalid page: ${page}, converted to: ${validPage}`);
+    }
+    if (typeof offset !== 'number' || isNaN(offset)) {
+      throw new Error(`Invalid offset: ${offset}`);
+    }
 
     let whereClause = 'WHERE role = "enforcer"';
     let params = [];
@@ -123,6 +138,17 @@ router.get('/enforcers', async (req, res) => {
       params.push(status === 'active' ? 1 : 0);
     }
 
+    // Aggressive debugging
+    console.log('=== ENFORCERS DEBUG START ===');
+    console.log('req.query:', req.query);
+    console.log('page:', page, 'limit:', limit);
+    console.log('validLimit:', validLimit, 'type:', typeof validLimit);
+    console.log('validPage:', validPage, 'type:', typeof validPage);
+    console.log('offset:', offset, 'type:', typeof offset);
+    console.log('params array:', params);
+    console.log('final params array:', [...params, validLimit, offset]);
+    console.log('=== ENFORCERS DEBUG END ===');
+    
     // Get enforcers
     const enforcers = await query(`
       SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at
@@ -130,7 +156,7 @@ router.get('/enforcers', async (req, res) => {
       ${whereClause}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+    `, [...params, validLimit, offset]);
 
     // Get total count
     const [totalCount] = await query(`
@@ -144,8 +170,8 @@ router.get('/enforcers', async (req, res) => {
       data: {
         enforcers,
         pagination: {
-          current: parseInt(page),
-          total: Math.ceil(totalCount.count / limit),
+          current: validPage,
+          total: Math.ceil(totalCount.count / validLimit),
           totalRecords: totalCount.count
         }
       }

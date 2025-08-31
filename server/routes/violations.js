@@ -26,7 +26,21 @@ router.get('/', async (req, res) => {
       violation_type = ''
     } = req.query;
     
-    const offset = (page - 1) * limit;
+    // Ensure limit and page are valid numbers with explicit type conversion
+    const validLimit = Math.max(1, Math.min(100, parseInt(limit) || 10));
+    const validPage = Math.max(1, parseInt(page) || 1);
+    const offset = (validPage - 1) * validLimit;
+    
+    // Double-check types
+    if (typeof validLimit !== 'number' || isNaN(validLimit)) {
+      throw new Error(`Invalid limit: ${limit}, converted to: ${validLimit}`);
+    }
+    if (typeof validPage !== 'number' || isNaN(validPage)) {
+      throw new Error(`Invalid page: ${page}, converted to: ${validPage}`);
+    }
+    if (typeof offset !== 'number' || isNaN(offset)) {
+      throw new Error(`Invalid offset: ${offset}`);
+    }
     let whereClause = 'WHERE 1=1';
     let params = [];
 
@@ -68,6 +82,17 @@ router.get('/', async (req, res) => {
       params.push(violation_type);
     }
 
+    // Aggressive debugging
+    console.log('=== VIOLATIONS DEBUG START ===');
+    console.log('req.query:', req.query);
+    console.log('page:', page, 'limit:', limit);
+    console.log('validLimit:', validLimit, 'type:', typeof validLimit);
+    console.log('validPage:', validPage, 'type:', typeof validPage);
+    console.log('offset:', offset, 'type:', typeof offset);
+    console.log('params array:', params);
+    console.log('final params array:', [...params, validLimit, offset]);
+    console.log('=== VIOLATIONS DEBUG END ===');
+    
     // Get violations with enforcer info
     const violations = await query(`
       SELECT 
@@ -79,7 +104,7 @@ router.get('/', async (req, res) => {
       ${whereClause}
       ORDER BY v.created_at DESC
       LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+    `, [...params, validLimit, offset]);
 
     // Get total count
     const [totalCount] = await query(`
@@ -94,8 +119,8 @@ router.get('/', async (req, res) => {
       data: {
         violations,
         pagination: {
-          current: parseInt(page),
-          total: Math.ceil(totalCount.count / limit),
+          current: validPage,
+          total: Math.ceil(totalCount.count / validLimit),
           totalRecords: totalCount.count
         }
       }

@@ -1,0 +1,317 @@
+2025-08-31T12:37:36.000000000Z [inf]  Starting Container
+2025-08-31T12:37:37.093061383Z [err]  npm warn config production Use `--omit=dev` instead.
+2025-08-31T12:37:37.097083531Z [inf]  
+2025-08-31T12:37:37.097091700Z [inf]  > e-traffic-server@1.0.0 start
+2025-08-31T12:37:37.097099455Z [inf]  > node index.js
+2025-08-31T12:37:37.097109358Z [inf]  
+2025-08-31T12:37:37.409708281Z [err]  Ignoring invalid configuration option passed to Connection: acquireTimeout. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+2025-08-31T12:37:37.409714533Z [err]  Ignoring invalid configuration option passed to Connection: timeout. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+2025-08-31T12:37:37.409720199Z [err]  Ignoring invalid configuration option passed to Connection: reconnect. This is currently a warning, but in future versions of MySQL2, an error will be thrown if you pass an invalid configuration option to a Connection
+2025-08-31T12:37:37.566563397Z [inf]  ✅ MySQL Database connected successfully
+2025-08-31T12:37:37.573643509Z [inf]  🚦 e-Traffic System Server running on port 8080
+2025-08-31T12:37:37.573650831Z [inf]  📊 Environment: production
+2025-08-31T12:37:37.573655985Z [inf]  🔗 Health check: http://localhost:8080/health
+2025-08-31T12:38:07.579414593Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579428061Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579436785Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579447666Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579456957Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:07.579466531Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.579473166Z [err]    errno: 1210,
+2025-08-31T12:38:07.579481606Z [err]    sql: '\n' +
+2025-08-31T12:38:07.579488894Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:07.579495546Z [err]      '      FROM users \n' +
+2025-08-31T12:38:07.579502979Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:07.579511805Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:07.579518815Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.579526058Z [err]      '    ',
+2025-08-31T12:38:07.579536217Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.579544377Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.579552821Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.579553249Z [err]  }
+2025-08-31T12:38:07.579563291Z [err]  Get enforcers error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579565394Z [err]  }
+2025-08-31T12:38:07.579572348Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579573277Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579580552Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579582840Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579586261Z [err]    errno: 1210,
+2025-08-31T12:38:07.579588928Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579592313Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579597912Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579600898Z [err]    sql: '\n' +
+2025-08-31T12:38:07.579603901Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:07.579608329Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:07.579609648Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:07.579614200Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.579619090Z [err]      '      FROM users \n' +
+2025-08-31T12:38:07.579623817Z [err]    errno: 1210,
+2025-08-31T12:38:07.579626148Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:07.579631356Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.579635153Z [err]    sql: '\n' +
+2025-08-31T12:38:07.579640989Z [err]    errno: 1210,
+2025-08-31T12:38:07.579645571Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:07.579646801Z [err]      '    ',
+2025-08-31T12:38:07.579647998Z [err]    sql: '\n' +
+2025-08-31T12:38:07.579654187Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:07.579656078Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.579660795Z [err]      '      FROM users \n' +
+2025-08-31T12:38:07.579665057Z [err]      '      FROM users \n' +
+2025-08-31T12:38:07.579665737Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.579667543Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:07.579669333Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579674454Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:07.579677052Z [err]  }
+2025-08-31T12:38:07.579679046Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:07.579681756Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:07.579684601Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.579686896Z [err]  Get enforcers error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579689501Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:07.579692968Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.579697178Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579700439Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.579702129Z [err]    errno: 1210,
+2025-08-31T12:38:07.579703547Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.579704182Z [err]    errno: 1210,
+2025-08-31T12:38:07.579707570Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579709523Z [err]      '    ',
+2025-08-31T12:38:07.579713480Z [err]    sql: '\n' +
+2025-08-31T12:38:07.579716024Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:07.579716050Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579718765Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.579718999Z [err]  }
+2025-08-31T12:38:07.579724200Z [err]      '      SELECT \n' +
+2025-08-31T12:38:07.579726568Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:07.579726630Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:07.579731473Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579735544Z [err]      '        v.*,\n' +
+2025-08-31T12:38:07.579735597Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:07.579736409Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.579742495Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579743690Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:07.579746630Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:07.579752690Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:07.579752952Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579754302Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.579757050Z [err]    sql: '\n' +
+2025-08-31T12:38:07.579758363Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:07.579763068Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579763249Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:07.579765787Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.579767015Z [err]      '      SELECT \n' +
+2025-08-31T12:38:07.579768097Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:07.579770342Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:07.579774255Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.579774343Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:07.579777461Z [err]  }
+2025-08-31T12:38:07.579778636Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.579779301Z [err]      '        v.*,\n' +
+2025-08-31T12:38:07.579786054Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.579786208Z [err]      '    ',
+2025-08-31T12:38:07.579786983Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.579787397Z [err]      '    ',
+2025-08-31T12:38:07.579788870Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:07.579790348Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:07.579797434Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.579797687Z [err]      '    ',
+2025-08-31T12:38:07.579798785Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:07.579806374Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.579807386Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.579814373Z [err]  }
+2025-08-31T12:38:07.579826075Z [err]  Get violations error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579833426Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579840793Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579965106Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.579975440Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.579981785Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.579991263Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.579998570Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:07.580005185Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.580011242Z [err]    errno: 1210,
+2025-08-31T12:38:07.581287723Z [err]    sql: '\n' +
+2025-08-31T12:38:07.581295649Z [err]      '      SELECT \n' +
+2025-08-31T12:38:07.581301523Z [err]      '        v.*,\n' +
+2025-08-31T12:38:07.581307138Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:07.581312706Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:07.581318513Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:07.581323425Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:07.581328110Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:07.581334247Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:07.581339428Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.581344798Z [err]      '    ',
+2025-08-31T12:38:07.581348960Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.581355275Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.581361279Z [err]  }
+2025-08-31T12:38:07.581367460Z [err]  Get violations error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:07.581372800Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:07.581377545Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:07.581384768Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:07.581389850Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:07.581394921Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:07.581401145Z [err]    errno: 1210,
+2025-08-31T12:38:07.581408618Z [err]    sql: '\n' +
+2025-08-31T12:38:07.581414339Z [err]      '      SELECT \n' +
+2025-08-31T12:38:07.581419999Z [err]      '        v.*,\n' +
+2025-08-31T12:38:07.581424931Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:07.581430698Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:07.581437029Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:07.581441931Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:07.581446200Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:07.581450511Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:07.581455286Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:07.581460701Z [err]      '    ',
+2025-08-31T12:38:07.581465527Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:07.581492575Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:07.581498452Z [err]  }
+2025-08-31T12:38:13.978247531Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:13.978258334Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:13.978263847Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:13.978268467Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:13.978273212Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:13.978279076Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:13.978283816Z [err]    errno: 1210,
+2025-08-31T12:38:13.978288363Z [err]    sql: '\n' +
+2025-08-31T12:38:13.978292754Z [err]      '      SELECT \n' +
+2025-08-31T12:38:13.978297523Z [err]      '        v.*,\n' +
+2025-08-31T12:38:13.978301758Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:13.978305857Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:13.978309892Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:13.978313890Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:13.978317540Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:13.978321670Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:13.978326627Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:13.978331016Z [err]      '    ',
+2025-08-31T12:38:13.978336104Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:13.978340549Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:13.978344495Z [err]  }
+2025-08-31T12:38:13.978349195Z [err]  Get violations error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:13.978354545Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:13.978358740Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:13.978368224Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:13.978372702Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:13.978377084Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:13.978380902Z [err]    errno: 1210,
+2025-08-31T12:38:13.978384829Z [err]    sql: '\n' +
+2025-08-31T12:38:13.978389052Z [err]      '      SELECT \n' +
+2025-08-31T12:38:13.978393499Z [err]      '        v.*,\n' +
+2025-08-31T12:38:13.978399507Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:13.978403483Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:13.978407645Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:13.978411666Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:13.978415618Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:13.978419729Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:13.978424422Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:13.978428734Z [err]      '    ',
+2025-08-31T12:38:13.978432850Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:13.978437186Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:13.978442280Z [err]  }
+2025-08-31T12:38:15.177837495Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:15.177841578Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:15.177845455Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:15.177849582Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:15.177853679Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:15.177860575Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:15.177865764Z [err]    errno: 1210,
+2025-08-31T12:38:15.177869927Z [err]    sql: '\n' +
+2025-08-31T12:38:15.177873848Z [err]      '      SELECT \n' +
+2025-08-31T12:38:15.177877664Z [err]      '        v.*,\n' +
+2025-08-31T12:38:15.177883009Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:15.177887838Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:15.177892319Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:15.177896438Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:15.177900642Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:15.177905020Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:15.177909761Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:15.177913736Z [err]      '    ',
+2025-08-31T12:38:15.177917881Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:15.177921867Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:15.177926208Z [err]  }
+2025-08-31T12:38:15.177931701Z [err]  Get violations error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:15.177938491Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:15.177945100Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:15.177950882Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:15.177957153Z [err]      at async /app/routes/violations.js:72:24 {
+2025-08-31T12:38:15.177964533Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:15.177970236Z [err]    errno: 1210,
+2025-08-31T12:38:15.177975892Z [err]    sql: '\n' +
+2025-08-31T12:38:15.177980373Z [err]      '      SELECT \n' +
+2025-08-31T12:38:15.177984488Z [err]      '        v.*,\n' +
+2025-08-31T12:38:15.177989401Z [err]      '        u.full_name as enforcer_name,\n' +
+2025-08-31T12:38:15.177994451Z [err]      '        u.badge_number as enforcer_badge\n' +
+2025-08-31T12:38:15.177998254Z [err]      '      FROM violations v\n' +
+2025-08-31T12:38:15.178002193Z [err]      '      JOIN users u ON v.enforcer_id = u.id\n' +
+2025-08-31T12:38:15.178006353Z [err]      '      WHERE 1=1\n' +
+2025-08-31T12:38:15.178010313Z [err]      '      ORDER BY v.created_at DESC\n' +
+2025-08-31T12:38:15.178014803Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:15.178018698Z [err]      '    ',
+2025-08-31T12:38:15.178022427Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:15.178027083Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:15.178036308Z [err]  }
+2025-08-31T12:38:21.869592412Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:21.869599418Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:21.869603704Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:21.869607601Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:21.869612303Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:21.869616040Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:21.869620635Z [err]    errno: 1210,
+2025-08-31T12:38:21.869625023Z [err]    sql: '\n' +
+2025-08-31T12:38:21.869631123Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:21.869635656Z [err]      '      FROM users \n' +
+2025-08-31T12:38:21.869639918Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:21.869644415Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:21.869648462Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:21.869652598Z [err]      '    ',
+2025-08-31T12:38:21.869656969Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:21.869662276Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:21.869667046Z [err]  }
+2025-08-31T12:38:21.869670970Z [err]  Get enforcers error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:21.869675116Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:21.869679090Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:21.869685016Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:21.869690121Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:21.869694137Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:21.869698365Z [err]    errno: 1210,
+2025-08-31T12:38:21.869702737Z [err]    sql: '\n' +
+2025-08-31T12:38:21.869707258Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:21.869712923Z [err]      '      FROM users \n' +
+2025-08-31T12:38:21.869716802Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:21.869720976Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:21.869726443Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:21.869730994Z [err]      '    ',
+2025-08-31T12:38:21.869735101Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:21.869739286Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:21.869743027Z [err]  }
+2025-08-31T12:38:23.070877922Z [err]  Database query error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:23.070889315Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:23.070896004Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:23.070903862Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:23.070913449Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:23.070920187Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:23.070928168Z [err]    errno: 1210,
+2025-08-31T12:38:23.070934821Z [err]    sql: '\n' +
+2025-08-31T12:38:23.070940789Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:23.070947547Z [err]      '      FROM users \n' +
+2025-08-31T12:38:23.070953841Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:23.070960062Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:23.070966764Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:23.070973740Z [err]      '    ',
+2025-08-31T12:38:23.070979756Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:23.070987065Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:23.070993816Z [err]  }
+2025-08-31T12:38:23.071000476Z [err]  Get enforcers error: Error: Incorrect arguments to mysqld_stmt_execute
+2025-08-31T12:38:23.071007596Z [err]      at PromisePool.execute (/app/node_modules/mysql2/lib/promise/pool.js:54:22)
+2025-08-31T12:38:23.071014180Z [err]      at query (/app/config/database.js:43:37)
+2025-08-31T12:38:23.071021983Z [err]      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+2025-08-31T12:38:23.071028481Z [err]      at async /app/routes/admin.js:127:23 {
+2025-08-31T12:38:23.071034749Z [err]    code: 'ER_WRONG_ARGUMENTS',
+2025-08-31T12:38:23.071041089Z [err]    errno: 1210,
+2025-08-31T12:38:23.071049932Z [err]    sql: '\n' +
+2025-08-31T12:38:23.071056391Z [err]      '      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at\n' +
+2025-08-31T12:38:23.071062541Z [err]      '      FROM users \n' +
+2025-08-31T12:38:23.071070720Z [err]      '      WHERE role = "enforcer"\n' +
+2025-08-31T12:38:23.071077430Z [err]      '      ORDER BY created_at DESC\n' +
+2025-08-31T12:38:23.071084477Z [err]      '      LIMIT ? OFFSET ?\n' +
+2025-08-31T12:38:23.071090366Z [err]      '    ',
+2025-08-31T12:38:23.071096968Z [err]    sqlState: 'HY000',
+2025-08-31T12:38:23.071103526Z [err]    sqlMessage: 'Incorrect arguments to mysqld_stmt_execute'
+2025-08-31T12:38:23.071109614Z [err]  }
