@@ -38,7 +38,8 @@
     "build:prod": "REACT_APP_ENV=production npm run build",
     "deploy:vercel": "vercel --prod",
     "deploy:netlify": "netlify deploy --prod --dir=build",
-    "vercel-build": "npm run build"
+    "vercel-build": "CI=false npm run build",
+    "postinstall": "chmod +x node_modules/.bin/* || true"
   },
   "eslintConfig": {
     "extends": [
