@@ -39,7 +39,7 @@
     "deploy:vercel": "vercel --prod",
     "deploy:netlify": "netlify deploy --prod --dir=build",
     "vercel-build": "CI=false npm run build",
-    "postinstall": "chmod +x node_modules/.bin/* || true"
+    "postinstall": "echo 'Postinstall completed'"
   },
   "eslintConfig": {
     "extends": [
