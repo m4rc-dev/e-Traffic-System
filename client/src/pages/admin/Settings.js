@@ -13,19 +13,19 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const SettingSection = ({ title, description, icon: Icon, children }) => (
-  <div className="card">
-    <div className="card-header">
+  <div className="mobile-card">
+    <div className="p-4 sm:p-6 border-b border-gray-200">
       <div className="flex items-center">
         <div className="flex-shrink-0 p-2 rounded-md bg-primary-100">
           <Icon className="h-5 w-5 text-primary-600" />
         </div>
         <div className="ml-3">
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-500">{description}</p>
+          <h3 className="responsive-text-lg font-medium text-gray-900">{title}</h3>
+          <p className="responsive-text-sm text-gray-500">{description}</p>
         </div>
       </div>
     </div>
-    <div className="card-body">
+    <div className="p-4 sm:p-6">
       {children}
     </div>
   </div>
@@ -33,12 +33,12 @@ const SettingSection = ({ title, description, icon: Icon, children }) => (
 
 const FormField = ({ label, children, required = false, error }) => (
   <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700 mb-2">
+    <label className="block responsive-text-sm font-medium text-gray-700 mb-2">
       {label}
       {required && <span className="text-red-500 ml-1">*</span>}
     </label>
     {children}
-    {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    {error && <p className="mt-1 responsive-text-sm text-red-600">{error}</p>}
   </div>
 );
 
@@ -164,11 +164,11 @@ function Settings() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 mobile-padding">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">System Settings</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="responsive-text-2xl font-bold text-gray-900">System Settings</h1>
+          <p className="mt-1 responsive-text-sm text-gray-500">
             Configure system preferences and admin settings (Violation processing handled by IoT device)
           </p>
         </div>
@@ -180,13 +180,13 @@ function Settings() {
           description="Basic system configuration and appearance"
           icon={SettingsIcon}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mobile-form-grid">
             <FormField label="System Name" required error={errors.system_name}>
               <input
                 type="text"
                 value={formData.system_name}
                 onChange={(e) => handleInputChange('system_name', e.target.value)}
-                className="input"
+                className="mobile-input"
                 placeholder="e-Traffic System"
               />
             </FormField>
@@ -196,7 +196,7 @@ function Settings() {
                 type="text"
                 value={formData.system_description}
                 onChange={(e) => handleInputChange('system_description', e.target.value)}
-                className="input"
+                className="mobile-input"
                 placeholder="Traffic violation management system"
               />
             </FormField>
@@ -206,7 +206,7 @@ function Settings() {
                 type="email"
                 value={formData.admin_email}
                 onChange={(e) => handleInputChange('admin_email', e.target.value)}
-                className="input"
+                className="mobile-input"
                 placeholder="admin@etraffic.com"
               />
             </FormField>
@@ -215,7 +215,7 @@ function Settings() {
               <select
                 value={formData.timezone}
                 onChange={(e) => handleInputChange('timezone', e.target.value)}
-                className="input"
+                className="mobile-select"
               >
                 <option value="UTC">UTC</option>
                 <option value="America/New_York">Eastern Time</option>
@@ -232,7 +232,7 @@ function Settings() {
               <select
                 value={formData.date_format}
                 onChange={(e) => handleInputChange('date_format', e.target.value)}
-                className="input"
+                className="mobile-select"
               >
                 <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                 <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -245,7 +245,7 @@ function Settings() {
               <select
                 value={formData.currency}
                 onChange={(e) => handleInputChange('currency', e.target.value)}
-                className="input"
+                className="mobile-select"
               >
                 <option value="PHP">PHP (₱)</option>
                 <option value="USD">USD ($)</option>
@@ -263,7 +263,7 @@ function Settings() {
           description="Configure SMS gateway for system admin notifications (IoT device handles violation SMS)"
           icon={MessageSquare}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mobile-form-grid">
             <FormField label="Enable SMS Notifications">
               <div className="flex items-center">
                 <input
@@ -273,7 +273,7 @@ function Settings() {
                   onChange={(e) => handleInputChange('sms_enabled', e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="sms_enabled" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="sms_enabled" className="ml-2 responsive-text-sm text-gray-700">
                   Enable SMS notifications
                 </label>
               </div>
@@ -284,7 +284,7 @@ function Settings() {
                 type="text"
                 value={formData.sms_sender_id}
                 onChange={(e) => handleInputChange('sms_sender_id', e.target.value)}
-                className="input"
+                className="mobile-input"
                 placeholder="eTraffic"
                 disabled={!formData.sms_enabled}
               />
@@ -299,7 +299,7 @@ function Settings() {
                 type="password"
                 value={formData.sms_api_key}
                 onChange={(e) => handleInputChange('sms_api_key', e.target.value)}
-                className="input"
+                className="mobile-input"
                 placeholder="Your SMS API key"
                 disabled={!formData.sms_enabled}
               />
@@ -314,7 +314,7 @@ function Settings() {
                 type="url"
                 value={formData.sms_api_url}
                 onChange={(e) => handleInputChange('sms_api_url', e.target.value)}
-                className="input"
+                className="mobile-input"
                 placeholder="https://api.smsgateway.com/send"
                 disabled={!formData.sms_enabled}
               />
@@ -327,13 +327,13 @@ function Settings() {
           description="Configure authentication and security parameters"
           icon={Shield}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mobile-form-grid">
             <FormField label="Session Timeout (minutes)">
               <input
                 type="number"
                 value={formData.session_timeout}
                 onChange={(e) => handleInputChange('session_timeout', parseInt(e.target.value))}
-                className="input"
+                className="mobile-input"
                 min="5"
                 max="480"
               />
@@ -344,7 +344,7 @@ function Settings() {
                 type="number"
                 value={formData.max_login_attempts}
                 onChange={(e) => handleInputChange('max_login_attempts', parseInt(e.target.value))}
-                className="input"
+                className="mobile-input"
                 min="3"
                 max="10"
               />
@@ -355,7 +355,7 @@ function Settings() {
                 type="number"
                 value={formData.password_min_length}
                 onChange={(e) => handleInputChange('password_min_length', parseInt(e.target.value))}
-                className="input"
+                className="mobile-input"
                 min="6"
                 max="20"
               />
@@ -370,7 +370,7 @@ function Settings() {
                   onChange={(e) => handleInputChange('require_strong_password', e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="require_strong_password" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="require_strong_password" className="ml-2 responsive-text-sm text-gray-700">
                   Require uppercase, lowercase, numbers, and symbols
                 </label>
               </div>
@@ -383,7 +383,7 @@ function Settings() {
           description="Configure system notification settings (IoT device handles violation notifications)"
           icon={Bell}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mobile-form-grid">
             <FormField label="Admin Email Alerts">
               <div className="flex items-center">
                 <input
@@ -393,7 +393,7 @@ function Settings() {
                   onChange={(e) => handleInputChange('email_notifications', e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="email_notifications" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="email_notifications" className="ml-2 responsive-text-sm text-gray-700">
                   Send admin email notifications
                 </label>
               </div>
@@ -408,7 +408,7 @@ function Settings() {
                   onChange={(e) => handleInputChange('violation_alerts', e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="violation_alerts" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="violation_alerts" className="ml-2 responsive-text-sm text-gray-700">
                   Alert on system events
                 </label>
               </div>
@@ -427,7 +427,7 @@ function Settings() {
           description="Basic system settings and maintenance options"
           icon={Database}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="mobile-form-grid">
             <FormField label="Debug Mode">
               <div className="flex items-center">
                 <input
@@ -437,7 +437,7 @@ function Settings() {
                   onChange={(e) => handleInputChange('debug_mode', e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="debug_mode" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="debug_mode" className="ml-2 responsive-text-sm text-gray-700">
                   Enable debug logging
                 </label>
               </div>
@@ -452,7 +452,7 @@ function Settings() {
                   onChange={(e) => handleInputChange('auto_backup', e.target.checked)}
                   className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                 />
-                <label htmlFor="auto_backup" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="auto_backup" className="ml-2 responsive-text-sm text-gray-700">
                   Enable automatic backups
                 </label>
               </div>
@@ -466,11 +466,11 @@ function Settings() {
           </div>
         </SettingSection>
 
-        <div className="flex justify-end space-x-4 pt-6">
+        <div className="mobile-button-group pt-6">
           <button
             type="button"
             onClick={handleReset}
-            className="btn-secondary"
+            className="mobile-btn-secondary"
             disabled={updateSettingsMutation.isPending}
           >
             Reset to Default
@@ -478,7 +478,7 @@ function Settings() {
           <button
             type="submit"
             disabled={updateSettingsMutation.isPending}
-            className="btn-primary flex items-center gap-2"
+            className="mobile-btn-primary flex items-center gap-2"
           >
             {updateSettingsMutation.isPending ? (
               <LoadingSpinner size="sm" />

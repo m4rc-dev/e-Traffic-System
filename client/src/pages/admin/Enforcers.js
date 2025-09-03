@@ -256,18 +256,19 @@ const Enforcers = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Enforcer Management</h1>
-          <p className="text-gray-600">Manage traffic enforcer accounts</p>
+          <h1 className="responsive-text-2xl font-bold text-gray-900">Enforcer Management</h1>
+          <p className="responsive-text-sm text-gray-600">Manage traffic enforcer accounts</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowAddModal(true)}
-            className="btn-primary flex items-center gap-2"
+            className="mobile-btn-primary flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add Enforcer
+            <span className="hidden sm:inline">Add Enforcer</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
       </div>
@@ -308,31 +309,31 @@ const Enforcers = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex gap-4">
+      <div className="bg-white rounded-lg shadow mobile-card">
+        <div className="flex flex-col sm:flex-row gap-4 p-4 sm:p-6">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
                 placeholder="Search enforcers..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
               />
             </div>
           </div>
-          <div className="relative select-fix">
+          <div className="relative">
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="min-w-[140px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-gray-700 cursor-pointer appearance-none relative z-20"
+              className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200 min-w-[140px] appearance-none"
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none z-30">
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
               <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -347,22 +348,22 @@ const Enforcers = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Enforcer
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Badge Number
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contact
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Last Login
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -370,7 +371,7 @@ const Enforcers = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredEnforcers.map((enforcer) => (
                 <tr key={enforcer.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
                         {enforcer.full_name}
@@ -380,13 +381,13 @@ const Enforcers = () => {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {enforcer.badge_number || 'N/A'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {enforcer.phone_number || 'N/A'}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       enforcer.is_active 
                         ? 'bg-green-100 text-green-800' 
@@ -395,24 +396,24 @@ const Enforcers = () => {
                       {enforcer.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {enforcer.last_login 
                       ? new Date(enforcer.last_login).toLocaleDateString()
                       : 'Never'
                     }
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => setEditingEnforcer(enforcer)}
-                        className="text-indigo-600 hover:text-indigo-900"
+                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md hover:bg-indigo-50 transition-colors"
                         title="Edit Enforcer"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(enforcer.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                         title="Delete Enforcer"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -436,34 +437,20 @@ const Enforcers = () => {
       {(showAddModal || editingEnforcer) && (
         <>
           {/* Backdrop - Full screen coverage */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-[9999]" 
-            style={{ 
-              position: 'fixed',
-              top: '-100px',
-              left: '-100px',
-              right: '-100px',
-              bottom: '-100px',
-              width: 'calc(100vw + 200px)',
-              height: 'calc(100vh + 200px)',
-              margin: 0,
-              padding: 0,
-              overflow: 'hidden',
-              minWidth: '100vw',
-              minHeight: '100vh'
-            }}
-            onClick={() => {
-              setShowAddModal(false);
-              setEditingEnforcer(null);
-              setFormErrors({});
-            }}
-          />
+                <div
+        className="fixed bg-transparent z-[9999] inset-0"
+        onClick={() => {
+          setShowAddModal(false);
+          setEditingEnforcer(null);
+          setFormErrors({});
+        }}
+      />
           
-          {/* Modal Content */}
-          <div className="fixed inset-0 flex items-start justify-center z-[10000] p-4 pt-0">
-            <div className="bg-white rounded-lg p-4 w-full max-w-md shadow-2xl border border-gray-200 -mt-2">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-bold text-gray-900">
+                    {/* Modal Content */}
+          <div className="fixed inset-0 flex items-start justify-center z-[10000] p-4 pt-12">
+            <div className="mobile-modal bg-white rounded-lg shadow-2xl border border-gray-200 p-3 sm:p-4 w-full max-w-2xl">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="responsive-text-xl font-bold text-gray-900">
                   {editingEnforcer ? 'Edit Enforcer' : 'Add New Enforcer'}
                 </h2>
                 <button
@@ -472,7 +459,7 @@ const Enforcers = () => {
                     setEditingEnforcer(null);
                     setFormErrors({});
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1 touch-target"
                   title="Close"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -481,7 +468,7 @@ const Enforcers = () => {
                 </button>
               </div>
               
-              <form onSubmit={handleSubmit} className="space-y-3">
+              <form onSubmit={handleSubmit} className="space-y-2">
                 {/* General Error Message - only show if no specific field errors */}
                 {formErrors.general && !Object.keys(formErrors).some(key => key !== 'general') && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -490,7 +477,7 @@ const Enforcers = () => {
                 )}
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Username
                   </label>
                   <input
@@ -498,17 +485,17 @@ const Enforcers = () => {
                     name="username"
                     defaultValue={editingEnforcer?.username || ''}
                     required
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    className={`mobile-input ${
                       formErrors.username ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
                   />
                   {formErrors.username && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.username}</p>
+                    <p className="mt-1 responsive-text-sm text-red-600">{formErrors.username}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Email
                   </label>
                   <input
@@ -517,18 +504,18 @@ const Enforcers = () => {
                     defaultValue={editingEnforcer?.email || ''}
                     required
                     placeholder="enforcer@example.com"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    className={`mobile-input ${
                       formErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
                   />
                   {formErrors.email && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                    <p className="mt-1 responsive-text-sm text-red-600">{formErrors.email}</p>
                   )}
                 </div>
                 
                 {!editingEnforcer && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                       Password
                     </label>
                     <input
@@ -536,18 +523,18 @@ const Enforcers = () => {
                       name="password"
                       required
                       placeholder="Enter a secure password"
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                      className={`mobile-input ${
                         formErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                       }`}
                     />
                     {formErrors.password && (
-                      <p className="mt-1 text-sm text-red-600">{formErrors.password}</p>
+                      <p className="mt-1 responsive-text-sm text-red-600">{formErrors.password}</p>
                     )}
                   </div>
                 )}
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Full Name
                   </label>
                   <input
@@ -555,20 +542,20 @@ const Enforcers = () => {
                     name="full_name"
                     defaultValue={editingEnforcer?.full_name || ''}
                     required
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    className={`mobile-input ${
                       formErrors.full_name ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
                   />
                   {formErrors.full_name && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.full_name}</p>
+                    <p className="mt-1 responsive-text-sm text-red-600">{formErrors.full_name}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Badge Number
                     {!editingEnforcer && suggestedBadgeNumber && (
-                      <span className="text-xs text-green-600 ml-2 font-medium">
+                      <span className="responsive-text-xs text-green-600 ml-2 font-medium">
                         (Suggested: {suggestedBadgeNumber})
                       </span>
                     )}
@@ -581,7 +568,7 @@ const Enforcers = () => {
                       key={editingEnforcer ? `edit-${editingEnforcer.id}` : `add-${suggestedBadgeNumber}`}
                       required
                       placeholder={!editingEnforcer ? (suggestedBadgeNumber || 'BADGE001') : ''}
-                      className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                      className={`flex-1 mobile-input ${
                         formErrors.badge_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                       }`}
                     />
@@ -589,7 +576,7 @@ const Enforcers = () => {
                       <button
                         type="button"
                         onClick={fetchNextBadgeNumber}
-                        className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:border-transparent transition-colors"
+                        className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-primary focus:border-transparent transition-colors touch-target"
                         title="Refresh suggested badge number"
                       >
                         <RefreshCw className="w-4 h-4 text-gray-600" />
@@ -597,12 +584,12 @@ const Enforcers = () => {
                     )}
                   </div>
                   {formErrors.badge_number && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.badge_number}</p>
+                    <p className="mt-1 responsive-text-sm text-red-600">{formErrors.badge_number}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Phone Number
                   </label>
                   <input
@@ -611,23 +598,23 @@ const Enforcers = () => {
                     defaultValue={editingEnforcer?.phone_number || ''}
                     pattern="[0-9+\-\s\(\)]+"
                     placeholder="Enter phone number"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    className={`mobile-input ${
                       formErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
                   />
                   {formErrors.phone_number && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.phone_number}</p>
+                    <p className="mt-1 responsive-text-sm text-red-600">{formErrors.phone_number}</p>
                   )}
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Status
                   </label>
                   <select
                     name="is_active"
                     defaultValue={editingEnforcer ? editingEnforcer.is_active.toString() : 'true'}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    className={`mobile-select ${
                       formErrors.is_active ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
@@ -635,15 +622,15 @@ const Enforcers = () => {
                     <option value="false">Inactive</option>
                   </select>
                   {formErrors.is_active && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.is_active}</p>
+                    <p className="mt-1 responsive-text-sm text-red-600">{formErrors.is_active}</p>
                   )}
                 </div>
                 
-                <div className="flex gap-3 pt-4">
+                <div className="mobile-button-group pt-4">
                   <button
                     type="submit"
                     disabled={addEnforcerMutation.isPending || updateEnforcerMutation.isPending}
-                    className="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="mobile-btn-primary"
                   >
                     {addEnforcerMutation.isPending || updateEnforcerMutation.isPending ? (
                       <div className="flex items-center justify-center gap-2">
@@ -661,7 +648,7 @@ const Enforcers = () => {
                       setEditingEnforcer(null);
                       setFormErrors({});
                     }}
-                    className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                    className="mobile-btn-secondary"
                   >
                     Cancel
                   </button>

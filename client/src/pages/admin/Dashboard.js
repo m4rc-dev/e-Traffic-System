@@ -197,24 +197,26 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="space-y-8 p-6 bg-gray-50 min-h-screen">
+    <div className="space-y-6 sm:space-y-8 mobile-padding">
       {/* Page header */}
-      <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl p-8 border border-primary-100">
+      <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl mobile-card border border-primary-100">
         <div className="max-w-4xl">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Dashboard Overview</h1>
-          <p className="text-lg text-gray-600 leading-relaxed">
+          <h1 className="responsive-text-3xl font-bold text-gray-900 mb-3">Dashboard Overview</h1>
+          <p className="responsive-text-base text-gray-600 leading-relaxed">
             Real-time insights into traffic violations and system performance
           </p>
-          <div className="mt-4 flex items-center gap-2 text-sm text-primary-600">
-            <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
-            <span>Real-time data updates</span>
-            <span className="text-xs text-gray-500">• Auto-refresh every 30 seconds</span>
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-primary-600">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
+              <span>Real-time data updates</span>
+            </div>
+            <span className="text-xs text-gray-500 hidden sm:inline">• Auto-refresh every 30 seconds</span>
           </div>
         </div>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mobile-stats-grid">
         <StatCard
           title="Total Violations"
           value={data?.totalViolations || 0}
@@ -249,7 +251,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-2">
         {/* Monthly violations chart - Modern Bar Chart */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
@@ -259,8 +261,8 @@ const AdminDashboard = () => {
             </h4>
             <p className="text-sm text-gray-600 mt-1">Monthly violation patterns and trends</p>
           </div>
-          <div className="p-6">
-            <div className="h-80">
+          <div className="p-4 sm:p-6">
+            <div className="mobile-chart-container">
               {trendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={trendData}>
@@ -317,8 +319,8 @@ const AdminDashboard = () => {
             </h4>
             <p className="text-sm text-gray-600 mt-1">Payment status breakdown</p>
           </div>
-          <div className="p-6">
-            <div className="h-80">
+          <div className="p-4 sm:p-6">
+            <div className="mobile-chart-container">
               {statusData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -371,8 +373,8 @@ const AdminDashboard = () => {
           </h4>
           <p className="text-sm text-gray-600 mt-1">Monthly fine collection patterns</p>
         </div>
-        <div className="p-6">
-          <div className="h-80">
+        <div className="p-4 sm:p-6">
+          <div className="mobile-chart-container">
             {trendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trendData}>
@@ -429,39 +431,39 @@ const AdminDashboard = () => {
           </h4>
           <p className="text-sm text-gray-600 mt-1">Latest traffic violation records</p>
         </div>
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-gray-900">Recent Violations</h3>
+            <h3 className="responsive-text-xl font-bold text-gray-900">Recent Violations</h3>
             <button 
               onClick={() => navigate('/violations')}
-              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors duration-200 hover:underline"
+              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors duration-200 hover:underline px-3 py-1 rounded-md hover:bg-indigo-50"
             >
               View All →
             </button>
           </div>
-          <div className="overflow-hidden rounded-xl border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="mobile-table-container">
+            <table className="mobile-table">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Violation #
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Violator
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Type
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Fine
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Status
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Enforcer
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="mobile-table th">
                     Date
                   </th>
                 </tr>
@@ -469,30 +471,30 @@ const AdminDashboard = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {data?.recentViolations?.map((violation) => (
                   <tr key={violation.id} className="hover:bg-gray-50 transition-colors duration-150">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-gray-900">
+                    <td className="mobile-table td">
+                      <span className="responsive-text-sm font-semibold text-gray-900">
                         {violation.violation_number}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{violation.violator_name}</div>
+                    <td className="mobile-table td">
+                      <div className="responsive-text-sm font-medium text-gray-900">{violation.violator_name}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{violation.violation_type}</span>
+                    <td className="mobile-table td">
+                      <span className="responsive-text-sm text-gray-900">{violation.violation_type}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-gray-900">
+                    <td className="mobile-table td">
+                      <span className="responsive-text-sm font-semibold text-gray-900">
                         ₱{violation.fine_amount?.toLocaleString()}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="mobile-table td">
                       <StatusBadge status={violation.status} />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{violation.enforcer_name}</div>
+                    <td className="mobile-table td">
+                      <div className="responsive-text-sm text-gray-900">{violation.enforcer_name}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-500">
+                    <td className="mobile-table td">
+                      <span className="responsive-text-sm text-gray-500">
                         {new Date(violation.created_at).toLocaleDateString()}
                       </span>
                     </td>

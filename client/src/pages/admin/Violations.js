@@ -238,29 +238,28 @@ const Violations = () => {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div className="bg-gradient-to-r from-white to-gray-50 rounded-2xl p-6 shadow-sm border border-gray-100">
-      <div className="flex justify-between items-center">
+      <div className="bg-gradient-to-r from-white to-gray-50 rounded-2xl mobile-card shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Traffic Violations</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="responsive-text-2xl font-bold text-gray-900">Traffic Violations</h1>
+          <p className="mt-1 responsive-text-sm text-gray-500">
             View and manage violations recorded by enforcers via IoT devices
           </p>
         </div>
-          <div className="flex gap-3">
+          <div className="mobile-button-group">
             {/* Simplified View Pending Button */}
           <button 
             onClick={() => handleFilterChange('status', filters.status === 'pending' ? '' : 'pending')}
-              className={`
-                px-5 py-2.5 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2
-                ${filters.status === 'pending' 
+              className={`mobile-btn ${
+                filters.status === 'pending' 
                   ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md' 
                   : 'bg-orange-500 text-white hover:bg-orange-600 shadow-md'
-                }
-              `}
+              }`}
             title={filters.status === 'pending' ? 'Show all violations' : 'Show only pending violations'}
           >
               <Eye className="h-4 w-4" />
-              <span>{filters.status === 'pending' ? 'Show All' : 'View Pending'}</span>
+              <span className="hidden sm:inline">{filters.status === 'pending' ? 'Show All' : 'View Pending'}</span>
+              <span className="sm:hidden">{filters.status === 'pending' ? 'All' : 'Pending'}</span>
           </button>
             
             {/* Simplified Refresh Button */}
@@ -268,18 +267,19 @@ const Violations = () => {
             onClick={() => {
               queryClient.invalidateQueries(['violations', filters]);
               queryClient.invalidateQueries(['violationStats']);
+              refetch();
             }}
-              className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200 flex items-center gap-2"
+              className="mobile-btn-secondary"
           >
-              <Search className="h-4 w-4" />
-              <span>Refresh</span>
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden sm:inline">Refresh</span>
           </button>
             
             {/* Simplified Export Button */}
           <button 
             onClick={handleExport}
             disabled={isExporting}
-              className="px-5 py-2.5 bg-green-100 text-green-700 rounded-lg font-medium hover:bg-green-200 transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mobile-btn bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
             title="Export current violations to CSV"
           >
             {isExporting ? (
@@ -287,15 +287,15 @@ const Violations = () => {
             ) : (
                 <Download className="h-4 w-4" />
             )}
-              <span>{isExporting ? 'Exporting...' : 'Export'}</span>
+              <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
           </button>
           </div>
         </div>
       </div>
 
       {/* Quick Stats Cards */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="bg-white rounded-2xl mobile-card shadow-sm border border-gray-100">
+        <div className="mobile-stats-grid-3">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 p-6 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center">
             <div className="flex-1">
@@ -356,28 +356,6 @@ const Violations = () => {
                 <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-            </div>
-          </div>
-        </div>
-        
-          <div className="bg-gradient-to-br from-red-50 to-pink-100 rounded-2xl border border-red-200 p-6 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="flex-1">
-                <p className="text-sm font-semibold text-red-700 uppercase tracking-wide mb-2">Disputed</p>
-                <p className="text-3xl font-bold text-red-800">
-                {dashboardStats?.data?.data?.violationsByStatus?.find(s => s.status === 'disputed')?.count || 0}
-              </p>
-                <div className="mt-2 flex items-center text-sm text-red-600">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Under review</span>
-                </div>
-            </div>
-              <div className="p-4 bg-red-200 rounded-2xl shadow-inner">
-                <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
               </div>
             </div>
           </div>
@@ -431,18 +409,18 @@ const Violations = () => {
           </h3>
           <p className="text-sm text-gray-600 mt-1">Refine your search to find specific violations</p>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mobile-card">
+          <div className="mobile-form-grid">
             {/* Search */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Search
               </label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  className="input pl-10 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
                   placeholder="Search violations..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
@@ -456,7 +434,7 @@ const Violations = () => {
                 Status
               </label>
               <select
-                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
                 value={filters.status}
                 onChange={(e) => handleFilterChange('status', e.target.value)}
               >
@@ -475,7 +453,7 @@ const Violations = () => {
                 Violation Type
               </label>
               <select
-                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
                 value={filters.violation_type}
                 onChange={(e) => handleFilterChange('violation_type', e.target.value)}
               >
@@ -495,21 +473,21 @@ const Violations = () => {
               </label>
               <input
                 type="date"
-                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="mobile-input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 value={filters.start_date}
                 onChange={(e) => handleFilterChange('start_date', e.target.value)}
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+          <div className="mobile-form-grid mt-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 End Date
               </label>
               <input
                 type="date"
-                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="mobile-input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 value={filters.end_date}
                 onChange={(e) => handleFilterChange('end_date', e.target.value)}
               />
@@ -520,7 +498,7 @@ const Violations = () => {
                 Enforcer
               </label>
               <select
-                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="mobile-select focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 value={filters.enforcer_id}
                 onChange={(e) => handleFilterChange('enforcer_id', e.target.value)}
               >
@@ -538,7 +516,7 @@ const Violations = () => {
                 Items per page
               </label>
               <select
-                className="input focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="mobile-select focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 value={filters.limit}
                 onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
               >
@@ -561,10 +539,11 @@ const Violations = () => {
                   end_date: '',
                   violation_type: '',
                 })}
-                className="btn-secondary w-full hover:bg-gray-100 transition-colors duration-200"
+                className="mobile-btn-secondary w-full hover:bg-gray-100 transition-colors duration-200"
               >
                 <Filter className="h-4 w-4 mr-2" />
-                Clear Filters
+                <span className="hidden sm:inline">Clear Filters</span>
+                <span className="sm:hidden">Clear</span>
               </button>
             </div>
           </div>
@@ -572,9 +551,9 @@ const Violations = () => {
       </div>
 
       {/* Violations table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-          <div className="flex items-center justify-between">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <svg className="h-5 w-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -595,74 +574,92 @@ const Violations = () => {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="table">
-            <thead className="bg-gradient-to-r from-gray-100 to-gray-50">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="table-header-cell text-gray-700 font-semibold">Violation #</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Violator</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Vehicle</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Type</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Fine</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Status</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Enforcer</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Date</th>
-                <th className="table-header-cell text-gray-700 font-semibold">Actions</th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Violation #
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Violator
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Vehicle
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fine
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Enforcer
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="table-body">
+                        <tbody className="bg-white divide-y divide-gray-200">
                 {violations?.map((violation) => (
-                  <tr key={violation.id} className="table-row">
-                    <td className="table-cell font-medium">
+                  <tr key={violation.id} className="hover:bg-gray-50">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {violation.violation_number}
                     </td>
-                    <td className="table-cell">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
                       <div>
-                        <div className="font-medium">{violation.violator_name}</div>
+                        <div className="text-sm font-medium text-gray-900">{violation.violator_name}</div>
                         <div className="text-sm text-gray-500">
                           {violation.violator_phone}
                         </div>
                       </div>
                     </td>
-                    <td className="table-cell">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
                       <div>
-                        <div className="font-medium">{violation.vehicle_plate}</div>
+                        <div className="text-sm font-medium text-gray-900">{violation.vehicle_plate}</div>
                         <div className="text-sm text-gray-500">
                           {violation.vehicle_model} {violation.vehicle_color}
                         </div>
                       </div>
                     </td>
-                    <td className="table-cell">{violation.violation_type}</td>
-                    <td className="table-cell font-medium">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-900">{violation.violation_type}</td>
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       ₱{violation.fine_amount?.toLocaleString()}
                     </td>
-                    <td className="table-cell">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
                       <StatusBadge status={violation.status} />
                     </td>
-                    <td className="table-cell">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
                       <div>
-                        <div className="font-medium">{violation.enforcer_name}</div>
+                        <div className="text-sm font-medium text-gray-900">{violation.enforcer_name}</div>
                         <div className="text-sm text-gray-500">
                           {violation.enforcer_badge}
                         </div>
                       </div>
                     </td>
-                    <td className="table-cell">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(violation.created_at).toLocaleDateString()}
                     </td>
-                    <td className="table-cell">
-                      <div className="flex space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900">
+                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <button className="text-primary-600 hover:text-primary-900 p-1 rounded-md hover:bg-primary-50 transition-colors">
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleEdit(violation)}
-                          className="text-warning-600 hover:text-warning-900"
+                          className="text-warning-600 hover:text-warning-900 p-1 rounded-md hover:bg-warning-50 transition-colors"
                         >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button 
                           onClick={() => handleDelete(violation.id)}
-                          className="text-danger-600 hover:text-danger-900"
+                          className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -726,8 +723,8 @@ const Violations = () => {
 
       {/* Edit Violation Modal */}
       {showEditModal && editingViolation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-2xl mobile-modal overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-blue-50">
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <Edit className="h-5 w-5 text-primary-600" />
@@ -736,7 +733,7 @@ const Violations = () => {
               <p className="text-sm text-gray-600 mt-1">Update violation status and add administrative notes</p>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="mobile-card space-y-6">
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <svg className="h-4 w-4 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -761,7 +758,7 @@ const Violations = () => {
                   name="status"
                   defaultValue={editingViolation.status}
                   required
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 ${
+                  className={`mobile-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 ${
                     formErrors.status ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
                 >
@@ -790,7 +787,7 @@ const Violations = () => {
                   rows="4"
                   defaultValue={editingViolation.notes || ''}
                   placeholder="Add administrative notes or updates..."
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none transition-colors duration-200 ${
+                  className={`mobile-input w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none transition-colors duration-200 ${
                     formErrors.notes ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
                 />
@@ -804,11 +801,11 @@ const Violations = () => {
                 )}
               </div>
 
-              <div className="flex gap-3 pt-6 border-t border-gray-100">
+              <div className="mobile-button-group pt-6 border-t border-gray-100">
                 <button
                   type="submit"
                   disabled={updateViolationMutation.isPending}
-                  className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-primary-700 hover:to-primary-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="mobile-btn-primary flex-1"
                 >
                   {updateViolationMutation.isPending ? (
                     <div className="flex items-center justify-center gap-2">
@@ -829,7 +826,7 @@ const Violations = () => {
                     setEditingViolation(null);
                     setFormErrors({});
                   }}
-                  className="flex-1 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200"
+                  className="mobile-btn-secondary flex-1"
                 >
                   Cancel
                 </button>

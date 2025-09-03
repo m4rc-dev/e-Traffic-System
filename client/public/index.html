@@ -23,5 +23,24 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    
+    <!-- Suppress Chrome extension errors -->
+    <script>
+      // Suppress ethereum-related errors from browser extensions
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('ethereum')) {
+          e.preventDefault();
+          return false;
+        }
+      });
+      
+      // Suppress unhandled promise rejections from extensions
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && e.reason.message.includes('ethereum')) {
+          e.preventDefault();
+          return false;
+        }
+      });
+    </script>
   </body>
 </html>

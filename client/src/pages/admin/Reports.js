@@ -49,24 +49,24 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
 
   return (
     <div 
-      className="group relative overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
+      className="group relative overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer touch-target"
       onClick={onClick}
       style={{ background: backgroundColors[color] || backgroundColors.primary }}
     >
       {/* Content */}
-      <div className="relative p-8">
-        <div className="flex items-start gap-6">
+      <div className="relative p-4 sm:p-8">
+        <div className="flex items-start gap-4 sm:gap-6">
           {/* Icon container */}
-          <div className="flex-shrink-0 p-4 rounded-2xl bg-white/20 backdrop-blur-sm group-hover:bg-white/30 transition-all duration-300 border border-white/30">
-            <Icon className="h-8 w-8 transition-colors duration-300" style={{ color: iconColors[color] || iconColors.primary }} />
+          <div className="flex-shrink-0 p-3 sm:p-4 rounded-2xl bg-white/20 backdrop-blur-sm group-hover:bg-white/30 transition-all duration-300 border border-white/30">
+            <Icon className="h-6 w-6 sm:h-8 sm:w-8 transition-colors duration-300" style={{ color: iconColors[color] || iconColors.primary }} />
           </div>
           
           {/* Text content */}
           <div className="flex-1 min-w-0">
-            <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-gray-800 transition-colors duration-300">
+            <h3 className="responsive-text-lg font-semibold text-gray-900 mb-2 sm:mb-3 group-hover:text-gray-800 transition-colors duration-300">
               {title}
             </h3>
-            <p className="text-gray-700 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
+            <p className="responsive-text-sm text-gray-700 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
               {description}
             </p>
           </div>
@@ -74,7 +74,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
           {/* Arrow indicator */}
           <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
             <div className="p-2 rounded-full bg-white/30 backdrop-blur-sm" style={{ color: iconColors[color] || iconColors.primary }}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
@@ -89,24 +89,24 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
 };
 
 const DateRangePicker = ({ startDate, endDate, onStartDateChange, onEndDateChange }) => (
-  <div className="flex gap-4 items-center">
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+  <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+    <div className="flex-1">
+      <label className="block responsive-text-sm font-medium text-gray-700 mb-1">Start Date</label>
       <input
         type="date"
         value={startDate}
         onChange={(e) => onStartDateChange(e.target.value)}
-        className="input"
+        className="mobile-input"
         max={endDate || undefined}
       />
     </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+    <div className="flex-1">
+      <label className="block responsive-text-sm font-medium text-gray-700 mb-1">End Date</label>
       <input
         type="date"
         value={endDate}
         onChange={(e) => onEndDateChange(e.target.value)}
-        className="input"
+        className="mobile-input"
         min={startDate || undefined}
       />
     </div>
@@ -114,22 +114,24 @@ const DateRangePicker = ({ startDate, endDate, onStartDateChange, onEndDateChang
 );
 
 const ExportButtons = ({ onExport, reportType, isLoading, hasData }) => (
-  <div className="flex gap-2">
+  <div className="mobile-button-group">
     <button
       onClick={() => onExport('json')}
       disabled={isLoading || !hasData}
-      className="btn-secondary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="mobile-btn-secondary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <FileText className="h-4 w-4" />
-      Export JSON
+      <span className="hidden sm:inline">Export JSON</span>
+      <span className="sm:hidden">JSON</span>
     </button>
     <button
       onClick={() => onExport('csv')}
       disabled={isLoading || !hasData}
-      className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="mobile-btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <Download className="h-4 w-4" />
-      Export CSV
+      <span className="hidden sm:inline">Export CSV</span>
+      <span className="sm:hidden">CSV</span>
     </button>
   </div>
 );
@@ -1426,31 +1428,34 @@ const Reports = () => {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 mobile-padding">
       <Toaster position="top-right" />
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl p-8 border border-primary-100">
+      <div className="bg-gradient-to-r from-primary-50 to-blue-50 rounded-2xl mobile-card border border-primary-100">
         <div className="max-w-4xl">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">Reports & Analytics</h1>
-          <p className="text-lg text-gray-600 leading-relaxed">
+          <h1 className="responsive-text-3xl font-bold text-gray-900 mb-3">Reports & Analytics</h1>
+          <p className="responsive-text-base text-gray-600 leading-relaxed">
             Generate comprehensive reports and analyze system performance with detailed insights and visualizations
           </p>
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-primary-600">
-              <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
-              <span>Real-time data updates</span>
-              <span className="text-xs text-gray-500">• Last updated: {lastUpdate.toLocaleTimeString()}</span>
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-primary-600">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
+                <span>Real-time data updates</span>
+              </div>
+              <span className="text-xs text-gray-500 hidden sm:inline">• Last updated: {lastUpdate.toLocaleTimeString()}</span>
               <span className="text-xs text-green-600">• Auto-refresh: {isAutoRefresh ? 'ON' : 'OFF'}</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <button
                 onClick={refreshData}
-                className="btn-secondary text-sm px-3 py-1 flex items-center gap-2"
+                className="mobile-btn-secondary text-sm flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                Refresh Now
+                <span className="hidden sm:inline">Refresh Now</span>
+                <span className="sm:hidden">Refresh</span>
               </button>
               <label className="flex items-center gap-2 text-sm text-gray-600">
                 <input
@@ -1459,7 +1464,8 @@ const Reports = () => {
                   onChange={(e) => setIsAutoRefresh(e.target.checked)}
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
-                Auto-refresh
+                <span className="hidden sm:inline">Auto-refresh</span>
+                <span className="sm:hidden">Auto</span>
               </label>
             </div>
           </div>
@@ -1470,11 +1476,11 @@ const Reports = () => {
         /* Report Selection Grid */
         <div className="space-y-6">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">Choose Your Report Type</h2>
-            <p className="text-gray-500">Select from our comprehensive suite of analytical reports</p>
+            <h2 className="responsive-text-2xl font-semibold text-gray-800 mb-2">Choose Your Report Type</h2>
+            <p className="responsive-text-sm text-gray-500">Select from our comprehensive suite of analytical reports</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
           {reportTypes.map((report) => (
             <ReportCard
               key={report.id}
@@ -1490,21 +1496,22 @@ const Reports = () => {
       ) : (
         /* Active Report View */
         <div className="space-y-6">
-          <div className="flex items-center justify-between bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white rounded-xl mobile-card shadow-sm border border-gray-100 gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
             <button
               onClick={() => setActiveReport(null)}
-                className="btn-secondary flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                className="mobile-btn-secondary flex items-center gap-2 hover:bg-gray-50 transition-colors"
             >
                 <ArrowLeft className="h-4 w-4" />
-              Back to Reports
+              <span className="hidden sm:inline">Back to Reports</span>
+              <span className="sm:hidden">Back</span>
             </button>
-              <div className="h-6 w-px bg-gray-200"></div>
+              <div className="hidden sm:block h-6 w-px bg-gray-200"></div>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="responsive-text-xl font-semibold text-gray-900">
                   {reportTypes.find(r => r.id === activeReport)?.title}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="responsive-text-sm text-gray-500">
                   {reportTypes.find(r => r.id === activeReport)?.description}
                 </p>
               </div>
@@ -1512,7 +1519,7 @@ const Reports = () => {
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span>Live Data</span>
-              <span className="text-xs">• Updated: {lastUpdate.toLocaleTimeString()}</span>
+              <span className="text-xs hidden sm:inline">• Updated: {lastUpdate.toLocaleTimeString()}</span>
             </div>
           </div>
           {renderActiveReport()}
