@@ -5,6 +5,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 5000, // 5 second timeout
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,6 +32,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';
+    } else if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
+      // Handle network errors (backend not available)
+      console.warn('Backend API not available:', error.message);
+      // Don't redirect on network errors, let the app handle it gracefully
     }
     return Promise.reject(error);
   }

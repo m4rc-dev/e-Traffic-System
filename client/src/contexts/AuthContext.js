@@ -28,7 +28,9 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      // Clear token and user on any auth error
       localStorage.removeItem('token');
+      setUser(null);
     } finally {
       setLoading(false);
     }
