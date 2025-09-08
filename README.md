@@ -108,37 +108,14 @@ npm run install-all
 
 ### 4. Configure Environment Variables
 
-Create a `.env` file in the `server` directory:
+Create a `.env` file in the `server` directory using the provided template:
 
-```env
-# Server Configuration
-PORT=5000
-NODE_ENV=development
-
-# Database Configuration
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=e_traffic_db
-DB_PORT=3306
-
-# JWT Configuration
-JWT_SECRET=your_super_secret_jwt_key_here
-JWT_EXPIRES_IN=24h
-
-# SMS Gateway Configuration
-SMS_API_KEY=your_sms_api_key
-SMS_API_URL=https://api.smsgateway.com/send
-SMS_SENDER_ID=E_TRAFFIC
-
-# Admin Default Credentials
-ADMIN_EMAIL=admin@etraffic.com
-ADMIN_PASSWORD=admin123
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
+```bash
+# Copy the environment template
+cp server/env.example server/.env
 ```
+
+Edit the `.env` file with your specific configuration values. See `server/env.example` for all required environment variables.
 
 ### 5. Start the Application
 
@@ -155,14 +132,9 @@ The application will be available at:
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:5000
 
-## 🔐 Default Login Credentials
+## 🔐 Authentication
 
-After running the database setup, you can log in with:
-
-- **Email**: admin@etraffic.com
-- **Password**: admin123
-
-**⚠️ Important**: Change the default password after first login!
+The system uses JWT-based authentication with role-based access control. Default admin credentials are created during the initial database setup. Please refer to the environment configuration for authentication details.
 
 ## 📱 IoT Device Integration
 
@@ -176,8 +148,8 @@ POST /api/auth/login
 Content-Type: application/json
 
 {
-  "email": "enforcer@example.com",
-  "password": "password"
+  "email": "your_enforcer_email",
+  "password": "your_password"
 }
 ```
 
@@ -188,20 +160,20 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
-  "violator_name": "John Doe",
-  "violator_license": "DL123456",
-  "violator_phone": "+1234567890",
-  "violator_address": "123 Main St",
-  "vehicle_plate": "ABC123",
-  "vehicle_model": "Toyota Camry",
-  "vehicle_color": "Red",
-  "violation_type": "Speeding",
-  "violation_description": "Exceeded speed limit by 20 mph",
-  "location": "Main Street & 5th Avenue",
-  "latitude": 40.7128,
-  "longitude": -74.0060,
-  "fine_amount": 150.00,
-  "evidence_photos": ["base64_encoded_image_1", "base64_encoded_image_2"],
+  "violator_name": "Violator Name",
+  "violator_license": "License Number",
+  "violator_phone": "Phone Number",
+  "violator_address": "Address",
+  "vehicle_plate": "Plate Number",
+  "vehicle_model": "Vehicle Model",
+  "vehicle_color": "Vehicle Color",
+  "violation_type": "Violation Type",
+  "violation_description": "Description",
+  "location": "Location",
+  "latitude": 0.0,
+  "longitude": 0.0,
+  "fine_amount": 0.00,
+  "evidence_photos": ["base64_encoded_image"],
   "notes": "Additional notes"
 }
 ```
@@ -276,13 +248,7 @@ const createViolation = async (violationData) => {
 
 ### SMS Gateway Setup
 
-To enable SMS notifications, configure your SMS gateway in the `.env` file:
-
-```env
-SMS_API_KEY=your_sms_api_key
-SMS_API_URL=https://api.smsgateway.com/send
-SMS_SENDER_ID=E_TRAFFIC
-```
+To enable SMS notifications, configure your SMS gateway in the `.env` file. See `server/env.example` for the required SMS configuration variables.
 
 ### System Settings
 
@@ -308,14 +274,7 @@ npm start
 
 ### Environment Variables for Production
 
-```env
-NODE_ENV=production
-PORT=5000
-DB_HOST=your-production-db-host
-DB_USER=your-production-db-user
-DB_PASSWORD=your-production-db-password
-JWT_SECRET=your-production-jwt-secret
-```
+Configure production environment variables in your deployment platform. See `server/env.example` for all required variables and their descriptions.
 
 ## 📝 License
 
@@ -331,9 +290,7 @@ This project is licensed under the MIT License.
 
 ## 📞 Support
 
-For support and questions, please contact:
-- Email: support@etraffic.com
-- Documentation: [Link to documentation]
+For support and questions, please refer to the project documentation or create an issue in the repository.
 
 ## 🔄 Updates
 
