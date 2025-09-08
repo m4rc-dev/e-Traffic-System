@@ -22,11 +22,13 @@ const Violations = () => {
   const [isExporting, setIsExporting] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: violationsResponse, isLoading, error, refetch } = useQuery({
+  const { data: violationsResponse, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['violations', filters],
     queryFn: () => violationsAPI.getViolations(filters),
     placeholderData: (previousData) => previousData,
     retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 0, // Always consider data stale for better refresh behavior
     onError: (err) => {
       console.error('Failed to load violations:', err);
     }
@@ -264,15 +266,27 @@ const Violations = () => {
             
             {/* Simplified Refresh Button */}
           <button 
-            onClick={() => {
-              queryClient.invalidateQueries(['violations', filters]);
-              queryClient.invalidateQueries(['violationStats']);
-              refetch();
+            onClick={async () => {
+              try {
+                // Invalidate all related queries
+                await queryClient.invalidateQueries(['violations']);
+                await queryClient.invalidateQueries(['violationStats']);
+                await queryClient.invalidateQueries(['adminDashboard']);
+                
+                // Force refetch the current query
+                await refetch();
+                
+                toast.success('Data refreshed successfully!');
+              } catch (error) {
+                console.error('Refresh error:', error);
+                toast.error('Failed to refresh data');
+              }
             }}
-              className="mobile-btn-secondary"
+            disabled={isFetching}
+              className="mobile-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-              <RefreshCw className="h-4 w-4" />
-              <span className="hidden sm:inline">Refresh</span>
+              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isFetching ? 'Refreshing...' : 'Refresh'}</span>
           </button>
             
             {/* Simplified Export Button */}

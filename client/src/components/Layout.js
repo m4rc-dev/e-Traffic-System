@@ -12,7 +12,6 @@ import {
   Settings,
   User,
   LogOut,
-  Bell,
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -128,9 +127,6 @@ const Layout = ({ children }) => {
             <Logo size="small" />
           </div>
           <div className="flex items-center gap-x-2 sm:gap-x-4">
-            <button className="p-2 text-gray-400 hover:text-gray-500 touch-target">
-              <Bell className="h-5 w-5" />
-            </button>
             <div className="flex items-center gap-x-2 min-w-0">
               <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                 <User className="h-3 w-3 text-primary-600" />
