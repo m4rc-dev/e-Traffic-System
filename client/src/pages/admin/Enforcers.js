@@ -203,12 +203,32 @@ const Enforcers = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    
+    // Clear previous errors
+    setFormErrors({});
+    
+    // Validate phone number (11 digits for Philippine mobile numbers)
+    const phoneNumber = formData.get('phone_number');
+    if (phoneNumber) {
+      // Remove any non-digit characters for validation
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      if (cleanPhone.length !== 11) {
+        setFormErrors({ phone_number: 'Phone number must be exactly 11 digits' });
+        return;
+      }
+      // Check if it starts with 09 (Philippine mobile prefix)
+      if (!cleanPhone.startsWith('09')) {
+        setFormErrors({ phone_number: 'Phone number must start with 09 (Philippine mobile format)' });
+        return;
+      }
+    }
+    
     const enforcerData = {
       username: formData.get('username'),
       email: formData.get('email'),
       full_name: formData.get('full_name'),
       badge_number: formData.get('badge_number'),
-      phone_number: formData.get('phone_number'),
+      phone_number: phoneNumber,
       is_active: formData.get('is_active') === 'true'
     };
 
@@ -590,13 +610,15 @@ const Enforcers = () => {
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Phone Number
+                    <span className="responsive-text-xs text-gray-500 ml-1">(11 digits, starts with 09)</span>
                   </label>
                   <input
                     type="tel"
                     name="phone_number"
                     defaultValue={editingEnforcer?.phone_number || ''}
-                    pattern="[0-9+\-\s\(\)]+"
-                    placeholder="Enter phone number"
+                    pattern="09[0-9]{9}"
+                    placeholder="09123456789"
+                    maxLength="11"
                     className={`mobile-input ${
                       formErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
                     }`}

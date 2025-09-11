@@ -47,8 +47,8 @@ function Settings() {
     system_name: '',
     system_description: '',
     admin_email: '',
-    timezone: 'UTC',
-    date_format: 'YYYY-MM-DD',
+    timezone: 'Asia/Manila',
+    date_format: 'MM/DD/YYYY',
     currency: 'PHP',
     sms_api_key: '',
     sms_api_url: '',
@@ -217,14 +217,8 @@ function Settings() {
                 onChange={(e) => handleInputChange('timezone', e.target.value)}
                 className="mobile-select"
               >
+                <option value="Asia/Manila">Manila (Philippines)</option>
                 <option value="UTC">UTC</option>
-                <option value="America/New_York">Eastern Time</option>
-                <option value="America/Chicago">Central Time</option>
-                <option value="America/Denver">Mountain Time</option>
-                <option value="America/Los_Angeles">Pacific Time</option>
-                <option value="Europe/London">London</option>
-                <option value="Europe/Paris">Paris</option>
-                <option value="Asia/Tokyo">Tokyo</option>
               </select>
             </FormField>
 
@@ -249,10 +243,6 @@ function Settings() {
               >
                 <option value="PHP">PHP (₱)</option>
                 <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-                <option value="JPY">JPY (¥)</option>
-                <option value="CAD">CAD (C$)</option>
               </select>
             </FormField>
           </div>
