@@ -1,0 +1,81 @@
+// E-Traffic System Database ERD
+// Copy this code to https://dbdiagram.io to generate visual ERD
+
+Table users {
+  id int [pk, increment]
+  username varchar(50) [unique, not null]
+  email varchar(100) [unique, not null]
+  password varchar(255) [not null]
+  role enum('admin', 'enforcer') [not null, default: 'enforcer']
+  full_name varchar(100) [not null]
+  badge_number varchar(20) [unique]
+  phone_number varchar(20)
+  is_active boolean [default: true]
+  last_login datetime
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+Table violations {
+  id int [pk, increment]
+  violation_number varchar(50) [unique, not null]
+  enforcer_id int [not null]
+  violator_name varchar(100) [not null]
+  violator_license varchar(50)
+  violator_phone varchar(20)
+  violator_address text
+  vehicle_plate varchar(20)
+  vehicle_model varchar(100)
+  vehicle_color varchar(50)
+  violation_type varchar(100) [not null]
+  violation_description text
+  location varchar(255) [not null]
+  latitude decimal(10, 8)
+  longitude decimal(11, 8)
+  fine_amount decimal(10, 2) [not null]
+  status enum('pending', 'issued', 'paid', 'disputed', 'cancelled') [default: 'pending']
+  evidence_photos json
+  notes text
+  issued_at timestamp [default: `CURRENT_TIMESTAMP`]
+  due_date date
+  paid_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+Table sms_logs {
+  id int [pk, increment]
+  violation_id int [not null]
+  phone_number varchar(20) [not null]
+  message text [not null]
+  status enum('pending', 'sent', 'failed', 'delivered') [default: 'pending']
+  api_response json
+  sent_at timestamp [default: `CURRENT_TIMESTAMP`]
+  delivered_at timestamp
+}
+
+Table audit_logs {
+  id int [pk, increment]
+  user_id int
+  action varchar(100) [not null]
+  table_name varchar(50)
+  record_id int
+  old_values json
+  new_values json
+  ip_address varchar(45)
+  user_agent text
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+}
+
+Table system_settings {
+  id int [pk, increment]
+  setting_key varchar(100) [unique, not null]
+  setting_value text
+  description text
+  updated_at timestamp [default: `CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`]
+}
+
+// Relationships
+Ref: violations.enforcer_id > users.id [delete: cascade]
+Ref: sms_logs.violation_id > violations.id [delete: cascade]
+Ref: audit_logs.user_id > users.id [delete: set null]

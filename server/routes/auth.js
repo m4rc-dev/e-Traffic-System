@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { protect } = require('../middleware/auth');
+const { logAudit } = require('../utils/auditLogger');
 
 const router = express.Router();
 
@@ -33,6 +34,17 @@ router.post('/login', [
     );
 
     if (users.length === 0) {
+      // Log failed login attempt
+      await logAudit(
+        null, // No user ID for failed login
+        'LOGIN_FAILED',
+        'users',
+        null,
+        null,
+        { email, reason: 'User not found' },
+        req
+      );
+
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
@@ -44,6 +56,17 @@ router.post('/login', [
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      // Log failed login attempt
+      await logAudit(
+        user.id,
+        'LOGIN_FAILED',
+        'users',
+        user.id,
+        null,
+        { email, reason: 'Invalid password' },
+        req
+      );
+
       return res.status(401).json({
         success: false,
         error: 'Invalid credentials'
@@ -65,6 +88,17 @@ router.post('/login', [
 
     // Remove password from response
     delete user.password;
+
+    // Log successful login
+    await logAudit(
+      user.id,
+      'LOGIN_SUCCESS',
+      'users',
+      user.id,
+      null,
+      { login_time: new Date().toISOString() },
+      req
+    );
 
     res.status(200).json({
       success: true,
@@ -179,6 +213,17 @@ router.put('/change-password', [
 // @access  Private
 router.post('/logout', protect, async (req, res) => {
   try {
+    // Log logout action
+    await logAudit(
+      req.user.id,
+      'LOGOUT',
+      'users',
+      req.user.id,
+      null,
+      { logout_time: new Date().toISOString() },
+      req
+    );
+
     // In a stateless JWT system, logout is handled client-side
     // You could implement a blacklist here if needed
     res.status(200).json({

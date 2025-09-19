@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { protect, adminOnly } = require('../middleware/auth');
 const { generateNextBadgeNumber } = require('../utils/badgeNumberGenerator');
+const { logAudit } = require('../utils/auditLogger');
 
 const router = express.Router();
 
@@ -268,6 +269,17 @@ router.post('/enforcers', [
       [result.insertId]
     );
 
+    // Log audit trail
+    await logAudit(
+      req.user.id,
+      'CREATE_ENFORCER',
+      'users',
+      newEnforcer.id,
+      null,
+      newEnforcer,
+      req
+    );
+
     res.status(201).json({
       success: true,
       message: 'Enforcer created successfully',
@@ -380,6 +392,17 @@ router.put('/enforcers/:id', [
       [id]
     );
 
+    // Log audit trail
+    await logAudit(
+      req.user.id,
+      'UPDATE_ENFORCER',
+      'users',
+      updatedEnforcer.id,
+      null, // We could store old values here if needed
+      updatedEnforcer,
+      req
+    );
+
     res.status(200).json({
       success: true,
       message: 'Enforcer updated successfully',
@@ -428,8 +451,25 @@ router.delete('/enforcers/:id', async (req, res) => {
       });
     }
 
+    // Get enforcer data before deletion for audit log
+    const [enforcerData] = await query(
+      'SELECT id, username, email, full_name, badge_number FROM users WHERE id = ?',
+      [id]
+    );
+
     // Delete enforcer
     await query('DELETE FROM users WHERE id = ?', [id]);
+
+    // Log audit trail
+    await logAudit(
+      req.user.id,
+      'DELETE_ENFORCER',
+      'users',
+      enforcerData.id,
+      enforcerData,
+      null,
+      req
+    );
 
     res.status(200).json({
       success: true,

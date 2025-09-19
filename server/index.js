@@ -9,6 +9,7 @@ const adminRoutes = require('./routes/admin');
 const violationRoutes = require('./routes/violations');
 const reportRoutes = require('./routes/reports');
 const smsRoutes = require('./routes/sms');
+const auditRoutes = require('./routes/audit');
 
 const { connectDB } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -77,6 +78,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/violations', violationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/sms', smsRoutes);
+app.use('/api/audit', auditRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

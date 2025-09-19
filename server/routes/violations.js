@@ -4,6 +4,7 @@ const { query } = require('../config/database');
 const { protect, authorize } = require('../middleware/auth');
 const { sendSMS } = require('../services/smsService');
 const { generateViolationNumber } = require('../utils/violationNumberGenerator');
+const { logAudit } = require('../utils/auditLogger');
 
 const router = express.Router();
 
@@ -424,6 +425,17 @@ router.post('/', [
       }
     }
 
+    // Log audit trail
+    await logAudit(
+      req.user.id,
+      'CREATE_VIOLATION',
+      'violations',
+      newViolation.id,
+      null,
+      newViolation,
+      req
+    );
+
     res.status(201).json({
       success: true,
       message: 'Violation created successfully',
@@ -526,6 +538,17 @@ router.put('/:id', [
       WHERE v.id = ?
     `, [id]);
 
+    // Log audit trail
+    await logAudit(
+      req.user.id,
+      'UPDATE_VIOLATION',
+      'violations',
+      updatedViolation.id,
+      existingViolation,
+      updatedViolation,
+      req
+    );
+
     res.status(200).json({
       success: true,
       message: 'Violation updated successfully',
@@ -548,9 +571,9 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if violation exists
+    // Check if violation exists and get data for audit
     const [existingViolation] = await query(
-      'SELECT id FROM violations WHERE id = ?',
+      'SELECT * FROM violations WHERE id = ?',
       [id]
     );
 
@@ -563,6 +586,17 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
 
     // Delete violation
     await query('DELETE FROM violations WHERE id = ?', [id]);
+
+    // Log audit trail
+    await logAudit(
+      req.user.id,
+      'DELETE_VIOLATION',
+      'violations',
+      existingViolation.id,
+      existingViolation,
+      null,
+      req
+    );
 
     res.status(200).json({
       success: true,

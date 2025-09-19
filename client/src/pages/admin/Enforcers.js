@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit, Trash2, Search, RefreshCw } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
 
 const Enforcers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,6 +12,7 @@ const Enforcers = () => {
   const [editingEnforcer, setEditingEnforcer] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [suggestedBadgeNumber, setSuggestedBadgeNumber] = useState('');
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, enforcer: null });
   const queryClient = useQueryClient();
   
   // Debug authentication
@@ -244,10 +246,19 @@ const Enforcers = () => {
     }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this enforcer?')) {
-      deleteEnforcerMutation.mutate(id);
+  const handleDelete = (enforcer) => {
+    setDeleteDialog({ isOpen: true, enforcer });
+  };
+
+  const confirmDelete = () => {
+    if (deleteDialog.enforcer) {
+      deleteEnforcerMutation.mutate(deleteDialog.enforcer.id);
+      setDeleteDialog({ isOpen: false, enforcer: null });
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialog({ isOpen: false, enforcer: null });
   };
 
   if (isLoading) {
@@ -431,7 +442,7 @@ const Enforcers = () => {
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(enforcer.id)}
+                        onClick={() => handleDelete(enforcer)}
                         className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                         title="Delete Enforcer"
                       >
@@ -679,6 +690,20 @@ const Enforcers = () => {
           </div>
         </>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Enforcer"
+        message={`Are you sure you want to delete ${deleteDialog.enforcer?.full_name}? This action cannot be undone and will remove all associated data.`}
+        confirmText="Delete Enforcer"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={deleteEnforcerMutation.isPending}
+        confirmButtonColor="red"
+      />
     </div>
   );
 };

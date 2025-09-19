@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { violationsAPI, adminAPI } from '../../services/api';
 import { Search, Filter, Download, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
 import toast from 'react-hot-toast';
 
 const Violations = () => {
@@ -20,6 +21,7 @@ const Violations = () => {
   const [editingViolation, setEditingViolation] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [isExporting, setIsExporting] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, violation: null });
   const queryClient = useQueryClient();
 
   const { data: violationsResponse, isLoading, error, refetch, isFetching } = useQuery({
@@ -117,10 +119,19 @@ const Violations = () => {
     setFormErrors({});
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this violation? This action cannot be undone.')) {
-      deleteViolationMutation.mutate(id);
+  const handleDelete = (violation) => {
+    setDeleteDialog({ isOpen: true, violation });
+  };
+
+  const confirmDelete = () => {
+    if (deleteDialog.violation) {
+      deleteViolationMutation.mutate(deleteDialog.violation.id);
+      setDeleteDialog({ isOpen: false, violation: null });
     }
+  };
+
+  const cancelDelete = () => {
+    setDeleteDialog({ isOpen: false, violation: null });
   };
 
   const handleExport = async () => {
@@ -672,7 +683,7 @@ const Violations = () => {
                           <Edit className="h-4 w-4" />
                         </button>
                         <button 
-                          onClick={() => handleDelete(violation.id)}
+                          onClick={() => handleDelete(violation)}
                           className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -849,6 +860,20 @@ const Violations = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={cancelDelete}
+        onConfirm={confirmDelete}
+        title="Delete Violation"
+        message={`Are you sure you want to delete violation #${deleteDialog.violation?.violation_number}? This action cannot be undone and will remove all associated data including SMS logs.`}
+        confirmText="Delete Violation"
+        cancelText="Cancel"
+        type="danger"
+        isLoading={deleteViolationMutation.isPending}
+        confirmButtonColor="red"
+      />
     </div>
   );
 };
