@@ -2,7 +2,6 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
-import '../../styles/chart-animations.css';
 import {
   Users,
   FileText,
