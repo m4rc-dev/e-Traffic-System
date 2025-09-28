@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../../services/api';
+import '../../styles/chart-animations.css';
 import {
   Users,
   FileText,
@@ -23,14 +24,12 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   AreaChart,
   Area,
 } from 'recharts';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
-const COLORS = ['#A7C7E7', '#D8B4FE', '#FED7AA', '#BBF7D0', '#C7D2FE', '#FECACA', '#A5F3FC', '#D9F99D'];
+const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#22c55e', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
 const StatCard = ({ title, value, icon: Icon, change, color = 'primary', subtitle }) => {
   const colorMap = {
@@ -122,21 +121,6 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-        <p className="font-medium text-gray-900">{label}</p>
-        {payload.map((entry, index) => (
-          <p key={index} style={{ color: entry.color }} className="text-sm">
-            {entry.name}: {entry.value}
-          </p>
-        ))}
-      </div>
-    );
-  }
-  return null;
-};
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -149,10 +133,6 @@ const AdminDashboard = () => {
 
   // Extract data from response (server wraps payload in data)
   const data = dashboardResponse?.data?.data;
-
-  // Debug: Log the data to see what's available
-  console.log('Dashboard Data:', data);
-  console.log('Dashboard Response:', dashboardResponse);
 
   if (isLoading) {
     return (
@@ -176,12 +156,30 @@ const AdminDashboard = () => {
     value: item.count,
   })) || [];
 
-  // Use real data from database or show empty state
-  const trendData = data?.violationsByMonth?.map(item => ({
+  // Use real data from database - single source for both charts
+  const monthlyData = data?.monthlyData || [];
+  
+  // Prepare violations trend data (counts and total fines issued)
+  const trendData = monthlyData.map(item => ({
     month: item.month,
-    violations: item.count,
-    fines: item.totalFines || 0
-  })) || [];
+    violations: parseInt(item.totalViolations) || 0,
+    fines: parseFloat(item.totalFines) || 0
+  }));
+
+  // Prepare fines collection trend data (collected vs total fines)
+  const finesTrendData = monthlyData.map(item => ({
+    month: item.month,
+    collectedFines: parseFloat(item.collectedFines) || 0,
+    totalFines: parseFloat(item.totalFines) || 0,
+    paidViolations: parseInt(item.paidViolations) || 0,
+    totalViolations: parseInt(item.totalViolations) || 0
+  }));
+
+  // Debug: Log the data to see what's available
+  console.log('Dashboard Data:', data);
+  console.log('Monthly Data from Backend:', monthlyData);
+  console.log('Violations Trend Data:', trendData);
+  console.log('Fines Collection Trend Data:', finesTrendData);
 
   // Calculate total fines from violations data if totalFines is not available
   const totalFines = data?.totalFines || data?.recentViolations?.reduce((sum, violation) => {
@@ -254,37 +252,118 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-2">
         {/* Monthly violations chart - Modern Bar Chart */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+            <div className="flex items-center justify-between">
+              <div>
             <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary-600" />
+                  <TrendingUp className="h-5 w-5 text-indigo-600" />
               Violations Trend
             </h4>
             <p className="text-sm text-gray-600 mt-1">Monthly violation patterns and trends</p>
+              </div>
+              {trendData.length > 0 && (
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                    <span className="text-gray-600">Violations</span>
+                  </div>
+                  {trendData.some(item => item.fines > 0) && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                      <span className="text-gray-600">Fines</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="p-4 sm:p-6">
-            <div className="mobile-chart-container">
+            <div className="mobile-chart-container" style={{ minHeight: '300px' }}>
               {trendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData}>
+                  <AreaChart 
+                    data={trendData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                  >
                     <defs>
                       <linearGradient id="colorViolations" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1}/>
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                        <stop offset="50%" stopColor="#6366f1" stopOpacity={0.6}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                      </linearGradient>
+                      <linearGradient id="colorFines" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                        <stop offset="50%" stopColor="#059669" stopOpacity={0.6}/>
+                        <stop offset="95%" stopColor="#047857" stopOpacity={0.1}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <CartesianGrid 
+                      strokeDasharray="3 3" 
+                      stroke="#e2e8f0" 
+                      strokeOpacity={0.6}
+                    />
                     <XAxis 
                       dataKey="month" 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: '#64748b', fontSize: 12 }}
+                      tick={{ 
+                        fill: '#64748b', 
+                        fontSize: 11,
+                        fontWeight: 500
+                      }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value);
+                        return date.toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          year: '2-digit' 
+                        });
+                      }}
                     />
                     <YAxis 
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fill: '#64748b', fontSize: 12 }}
+                      tick={{ 
+                        fill: '#64748b', 
+                        fontSize: 11,
+                        fontWeight: 500
+                      }}
+                      tickFormatter={(value) => value.toString()}
                     />
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                              <p className="font-semibold text-gray-900 mb-2">
+                                {new Date(label).toLocaleDateString('en-US', { 
+                                  month: 'long', 
+                                  year: 'numeric' 
+                                })}
+                              </p>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+                                  <span className="text-sm text-gray-600">Violations:</span>
+                                  <span className="font-semibold text-gray-900">
+                                    {payload[0]?.value || 0}
+                                  </span>
+                                </div>
+                                {payload[1] && (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                    <span className="text-sm text-gray-600">Fines:</span>
+                                    <span className="font-semibold text-gray-900">
+                                      ₱{(payload[1]?.value || 0).toLocaleString()}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
                     <Area 
                       type="monotone" 
                       dataKey="violations" 
@@ -292,15 +371,52 @@ const AdminDashboard = () => {
                       strokeWidth={3}
                       fill="url(#colorViolations)"
                       fillOpacity={0.6}
+                      dot={{ 
+                        fill: '#6366f1', 
+                        strokeWidth: 2, 
+                        stroke: '#ffffff',
+                        r: 4
+                      }}
+                      activeDot={{ 
+                        r: 6, 
+                        stroke: '#6366f1', 
+                        strokeWidth: 2,
+                        fill: '#ffffff'
+                      }}
                     />
+                    {trendData.some(item => item.fines > 0) && (
+                      <Area 
+                        type="monotone" 
+                        dataKey="fines" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        fill="url(#colorFines)"
+                        fillOpacity={0.4}
+                        dot={{ 
+                          fill: '#10b981', 
+                          strokeWidth: 2, 
+                          stroke: '#ffffff',
+                          r: 3
+                        }}
+                        activeDot={{ 
+                          r: 5, 
+                          stroke: '#10b981', 
+                          strokeWidth: 2,
+                          fill: '#ffffff'
+                        }}
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-500">
-                    <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="relative">
+                      <svg className="mx-auto h-16 w-16 text-gray-300 mb-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+                    </div>
                     <p className="text-lg font-medium text-gray-900 mb-2">No Data Available</p>
                     <p className="text-sm text-gray-500">Violation trends will appear here once more data is recorded</p>
                   </div>
@@ -312,9 +428,9 @@ const AdminDashboard = () => {
 
         {/* Status distribution chart - Modern Pie Chart */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
             <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <PieChartIcon className="h-5 w-5 text-primary-600" />
+              <PieChartIcon className="h-5 w-5 text-blue-600" />
               Status Distribution
             </h4>
             <p className="text-sm text-gray-600 mt-1">Payment status breakdown</p>
@@ -334,6 +450,11 @@ const AdminDashboard = () => {
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       labelLine={false}
+                      labelStyle={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        fill: '#374151'
+                      }}
                     >
                       {statusData.map((entry, index) => (
                         <Cell 
@@ -344,7 +465,24 @@ const AdminDashboard = () => {
                         />
                       ))}
                     </Pie>
-                    <Tooltip content={<CustomTooltip />} />
+                    <Tooltip 
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0];
+                          return (
+                            <div className="bg-white p-3 rounded-lg shadow-lg border border-gray-200">
+                              <p className="font-semibold text-gray-900">
+                                {data.name}: {data.value}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {((data.value / statusData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}% of total
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -366,55 +504,175 @@ const AdminDashboard = () => {
 
       {/* Additional Chart - Fines Trend */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div>
           <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-primary-600" />
+                <DollarSign className="h-5 w-5 text-emerald-600" />
             Fines Collection Trend
           </h4>
           <p className="text-sm text-gray-600 mt-1">Monthly fine collection patterns</p>
+            </div>
+            {finesTrendData.length > 0 && (
+              <div className="flex items-center gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                  <span className="text-gray-600">Collected</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span className="text-gray-600">Total Fines</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="p-4 sm:p-6">
-          <div className="mobile-chart-container">
-            {trendData.length > 0 ? (
+          <div className="mobile-chart-container" style={{ minHeight: '300px' }}>
+            {finesTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={trendData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <AreaChart 
+                  data={finesTrendData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <defs>
+                    <linearGradient id="colorCollectedFines" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                      <stop offset="50%" stopColor="#059669" stopOpacity={0.6}/>
+                      <stop offset="95%" stopColor="#047857" stopOpacity={0.1}/>
+                    </linearGradient>
+                    <linearGradient id="colorTotalFines" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                      <stop offset="50%" stopColor="#2563eb" stopOpacity={0.6}/>
+                      <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0.1}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid 
+                    strokeDasharray="3 3" 
+                    stroke="#e2e8f0" 
+                    strokeOpacity={0.6}
+                  />
                   <XAxis 
                     dataKey="month" 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12 }}
+                    tick={{ 
+                      fill: '#64748b', 
+                      fontSize: 11,
+                      fontWeight: 500
+                    }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return date.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        year: '2-digit' 
+                      });
+                    }}
                   />
                   <YAxis 
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#64748b', fontSize: 12 }}
+                    tick={{ 
+                      fill: '#64748b', 
+                      fontSize: 11,
+                      fontWeight: 500
+                    }}
                     tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}k`}
                   />
                   <Tooltip 
-                    content={<CustomTooltip />}
-                    formatter={(value) => [`₱${value.toLocaleString()}`, 'Fines']}
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
+                            <p className="font-semibold text-gray-900 mb-2">
+                              {new Date(label).toLocaleDateString('en-US', { 
+                                month: 'long', 
+                                year: 'numeric' 
+                              })}
+                            </p>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                <span className="text-sm text-gray-600">Collected:</span>
+                                <span className="font-semibold text-gray-900">
+                                  ₱{(payload[0]?.value || 0).toLocaleString()}
+                                </span>
+                              </div>
+                              {payload[1] && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                  <span className="text-sm text-gray-600">Total Fines:</span>
+                                  <span className="font-semibold text-gray-900">
+                                    ₱{(payload[1]?.value || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="pt-2 border-t border-gray-100">
+                                <div className="text-xs text-gray-500">
+                                  Collection Rate: {payload[0]?.value && payload[1]?.value ? 
+                                    ((payload[0].value / payload[1].value) * 100).toFixed(1) : 0}%
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
-                  <Line 
+                  <Area 
                     type="monotone" 
-                    dataKey="fines" 
+                    dataKey="collectedFines" 
                     stroke="#10b981" 
                     strokeWidth={3}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    dot={{ fill: '#10b981', strokeWidth: 2, r: 6 }}
-                    activeDot={{ r: 8, stroke: '#10b981', strokeWidth: 2 }}
+                    fill="url(#colorCollectedFines)"
+                    fillOpacity={0.6}
+                    dot={{ 
+                      fill: '#10b981', 
+                      strokeWidth: 2, 
+                      stroke: '#ffffff',
+                      r: 4
+                    }}
+                    activeDot={{ 
+                      r: 6, 
+                      stroke: '#10b981', 
+                      strokeWidth: 2,
+                      fill: '#ffffff'
+                    }}
                   />
-                </LineChart>
+                  <Area 
+                    type="monotone" 
+                    dataKey="totalFines" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    fill="url(#colorTotalFines)"
+                    fillOpacity={0.3}
+                    dot={{ 
+                      fill: '#3b82f6', 
+                      strokeWidth: 2, 
+                      stroke: '#ffffff',
+                      r: 3
+                    }}
+                    activeDot={{ 
+                      r: 5, 
+                      stroke: '#3b82f6', 
+                      strokeWidth: 2,
+                      fill: '#ffffff'
+                    }}
+                  />
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center text-gray-500">
-                  <svg className="mx-auto h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="relative">
+                    <svg className="mx-auto h-16 w-16 text-gray-300 mb-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
-                  <p className="text-lg font-medium text-gray-900 mb-2">No Fines Data</p>
-                  <p className="text-sm text-gray-500">Fine collection trends will appear here once more violations are recorded</p>
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
+                  </div>
+                  <p className="text-lg font-medium text-gray-900 mb-2">No Collection Data</p>
+                  <p className="text-sm text-gray-500">Fine collection trends will appear here once payments are recorded</p>
                 </div>
               </div>
             )}
@@ -478,6 +736,13 @@ const AdminDashboard = () => {
                     </td>
                     <td className="mobile-table td">
                       <div className="responsive-text-sm font-medium text-gray-900">{violation.violator_name}</div>
+                      {violation.is_repeat_offender && (
+                        <div className="flex items-center mt-1">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            🔁 Repeat ({violation.previous_violations_count + 1})
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="mobile-table td">
                       <span className="responsive-text-sm text-gray-900">{violation.violation_type}</span>
