@@ -26,11 +26,14 @@ router.get('/dashboard', async (req, res) => {
       GROUP BY status
     `);
     
-    // Get violations by month (last 6 months)
-    const violationsByMonth = await query(`
+    // Get violations by month (last 6 months) with comprehensive data
+    const monthlyData = await query(`
       SELECT 
         DATE_FORMAT(created_at, '%Y-%m') as month,
-        COUNT(*) as count
+        COUNT(*) as totalViolations,
+        COALESCE(SUM(fine_amount), 0) as totalFines,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN fine_amount ELSE 0 END), 0) as collectedFines,
+        COALESCE(COUNT(CASE WHEN status = 'paid' THEN 1 END), 0) as paidViolations
       FROM violations 
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
@@ -64,7 +67,7 @@ router.get('/dashboard', async (req, res) => {
       data: {
         totalViolations: totalViolations.count,
         violationsByStatus,
-        violationsByMonth,
+        monthlyData,
         totalEnforcers: totalEnforcers.count,
         activeEnforcers: activeEnforcers.count,
         totalFines: parseFloat(totalFines.total),
