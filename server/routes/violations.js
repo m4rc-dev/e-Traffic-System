@@ -131,8 +131,8 @@ router.get('/', async (req, res) => {
       )
       ${whereClause}
       ORDER BY v.created_at DESC
-      LIMIT ${validLimit} OFFSET ${offset}
-    `, params);
+      LIMIT ? OFFSET ?
+    `, [...params, validLimit, offset]);
 
     // Get total count
     const [totalCount] = await query(`
