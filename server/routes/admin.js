@@ -339,12 +339,21 @@ router.get('/repeat-offenders', async (req, res) => {
   } catch (error) {
 
     console.error('Repeat offenders error:', error);
+    
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      errno: error.errno
+    });
 
     res.status(500).json({
 
       success: false,
 
-      error: 'Server error'
+      error: 'Server error',
+      
+      details: error.message
 
     });
 
