@@ -111,6 +111,24 @@ router.get('/repeat-offenders', async (req, res) => {
   try {
     const { limit = 20, min_violations = 2 } = req.query;
     
+    // First check if we have any violations at all
+    const [violationCount] = await query(`SELECT COUNT(*) as count FROM violations`);
+    
+    if (!violationCount || violationCount.count === 0) {
+      // Return empty data structure when no violations exist
+      return res.status(200).json({
+        success: true,
+        data: {
+          repeatOffenders: [],
+          statistics: {
+            total_repeat_offenders: 0,
+            avg_violations_per_offender: 0,
+            max_violations: 0
+          }
+        }
+      });
+    }
+    
     // Get repeat offenders with their violation history
     const repeatOffenders = await query(`
       SELECT 
@@ -122,16 +140,7 @@ router.get('/repeat-offenders', async (req, res) => {
         SUM(CASE WHEN status = 'paid' THEN fine_amount ELSE 0 END) as paid_fines,
         SUM(CASE WHEN status = 'pending' THEN fine_amount ELSE 0 END) as pending_fines,
         MIN(created_at) as first_violation_date,
-        MAX(created_at) as last_violation_date,
-        GROUP_CONCAT(DISTINCT violation_type ORDER BY created_at DESC SEPARATOR ', ') as violation_types,
-        (SELECT violation_type FROM violations v2 
-         WHERE v2.violator_name = violations.violator_name 
-         AND (v2.violator_license = violations.violator_license OR (v2.violator_license IS NULL AND violations.violator_license IS NULL))
-         ORDER BY v2.created_at ASC LIMIT 1) as first_violation_type,
-        (SELECT violation_type FROM violations v3 
-         WHERE v3.violator_name = violations.violator_name 
-         AND (v3.violator_license = violations.violator_license OR (v3.violator_license IS NULL AND violations.violator_license IS NULL))
-         ORDER BY v3.created_at DESC LIMIT 1) as last_violation_type
+        MAX(created_at) as last_violation_date
       FROM violations 
       GROUP BY violator_name, violator_license
       HAVING total_violations >= ?
@@ -139,35 +148,80 @@ router.get('/repeat-offenders', async (req, res) => {
       LIMIT ?
     `, [min_violations, limit]);
 
+    // Get first and last violation types for each offender
+    const enrichedOffenders = await Promise.all(
+      repeatOffenders.map(async (offender) => {
+        try {
+          // Get first violation type
+          const [firstViolation] = await query(`
+            SELECT violation_type 
+            FROM violations 
+            WHERE violator_name = ? 
+            AND (violator_license = ? OR (violator_license IS NULL AND ? IS NULL))
+            ORDER BY created_at ASC 
+            LIMIT 1
+          `, [offender.violator_name, offender.violator_license, offender.violator_license]);
+
+          // Get last violation type
+          const [lastViolation] = await query(`
+            SELECT violation_type 
+            FROM violations 
+            WHERE violator_name = ? 
+            AND (violator_license = ? OR (violator_license IS NULL AND ? IS NULL))
+            ORDER BY created_at DESC 
+            LIMIT 1
+          `, [offender.violator_name, offender.violator_license, offender.violator_license]);
+
+          return {
+            ...offender,
+            first_violation_type: firstViolation?.violation_type || null,
+            last_violation_type: lastViolation?.violation_type || null
+          };
+        } catch (err) {
+          console.error('Error enriching offender data:', err);
+          return offender;
+        }
+      })
+    );
+
     // Get repeat offender statistics
-    const [repeatOffenderStats] = await query(`
+    const statsResult = await query(`
       SELECT 
-        COUNT(DISTINCT CONCAT(violator_name, COALESCE(violator_license, ''))) as total_repeat_offenders,
-        AVG(violation_counts.total_violations) as avg_violations_per_offender,
-        MAX(violation_counts.total_violations) as max_violations
+        COUNT(*) as total_repeat_offenders,
+        AVG(total_violations) as avg_violations_per_offender,
+        MAX(total_violations) as max_violations
       FROM (
         SELECT 
-          violator_name, 
-          violator_license,
           COUNT(*) as total_violations
         FROM violations 
         GROUP BY violator_name, violator_license
         HAVING total_violations >= 2
-      ) violation_counts
+      ) as violation_counts
     `);
+
+    const statistics = statsResult[0] || {
+      total_repeat_offenders: 0,
+      avg_violations_per_offender: 0,
+      max_violations: 0
+    };
 
     res.status(200).json({
       success: true,
       data: {
-        repeatOffenders,
-        statistics: repeatOffenderStats
+        repeatOffenders: enrichedOffenders,
+        statistics: {
+          total_repeat_offenders: parseInt(statistics.total_repeat_offenders) || 0,
+          avg_violations_per_offender: parseFloat(statistics.avg_violations_per_offender) || 0,
+          max_violations: parseInt(statistics.max_violations) || 0
+        }
       }
     });
   } catch (error) {
     console.error('Repeat offenders error:', error);
     res.status(500).json({
       success: false,
-      error: 'Server error'
+      error: 'Server error',
+      message: error.message
     });
   }
 });
