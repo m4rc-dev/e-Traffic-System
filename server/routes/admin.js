@@ -290,7 +290,7 @@ router.get('/repeat-offenders', async (req, res) => {
 
     // Get repeat offender statistics
 
-    const [repeatOffenderStats] = await query(`
+    const statsResult = await query(`
 
       SELECT 
 
@@ -319,6 +319,14 @@ router.get('/repeat-offenders', async (req, res) => {
       ) violation_counts
 
     `);
+
+    
+
+    const repeatOffenderStats = statsResult[0] || {
+      total_repeat_offenders: 0,
+      avg_violations_per_offender: 0,
+      max_violations: 0
+    };
 
 
 
