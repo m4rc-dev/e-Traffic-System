@@ -10,6 +10,7 @@
     "build": "cd client && npm run build",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
     "setup-db": "cd server && npm run setup-db",
+    "add-test-violations": "cd server && npm run add-test-violations",
     "vercel-build": "cd client && npm install && npm run build"
   },
   "keywords": ["traffic", "violation", "iot", "management", "dashboard"],

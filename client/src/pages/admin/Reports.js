@@ -344,20 +344,29 @@ const ViolationsReport = ({ filters, setFilters }) => {
                       <thead className="table-header">
                         <tr>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violation #</th>
-                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violator</th>
+                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violator & License</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fine</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enforcer</th>
-                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
                         </tr>
                       </thead>
                       <tbody className="table-body">
                         {reportData.violations.map((violation, index) => (
                           <tr key={index} className="table-row">
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-mono">{violation.violation_number}</td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">{violation.violator_name}</td>
+                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
+                              <div>
+                                <div>{violation.violator_name}</div>
+                                {violation.violator_license && (
+                                  <div className="text-xs text-blue-600 font-mono mt-1">
+                                    License: {violation.violator_license}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">{violation.vehicle_plate || '-'}</td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                               <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
@@ -376,7 +385,14 @@ const ViolationsReport = ({ filters, setFilters }) => {
                             </td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">{violation.enforcer_name}</td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                              {new Date(violation.created_at).toLocaleDateString()}
+                              <div>
+                                <div className="font-medium text-gray-900">
+                                  {new Date(violation.created_at).toLocaleDateString()}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {new Date(violation.created_at).toLocaleTimeString()}
+                                </div>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1024,7 +1040,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                       <thead className="table-header">
                         <tr>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violator</th>
+                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Violator & License</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fine</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enforcer</th>
@@ -1036,7 +1052,16 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                               {new Date(violation.created_at).toLocaleTimeString()}
                             </td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">{violation.violator_name}</td>
+                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
+                              <div>
+                                <div>{violation.violator_name}</div>
+                                {violation.violator_license && (
+                                  <div className="text-xs text-blue-600 font-mono mt-1">
+                                    License: {violation.violator_license}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                               <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                                 {violation.violation_type}

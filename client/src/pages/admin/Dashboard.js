@@ -721,7 +721,7 @@ const AdminDashboard = () => {
                     Enforcer
                   </th>
                   <th className="mobile-table th">
-                    Date
+                    Date & Time
                   </th>
                 </tr>
               </thead>
@@ -735,6 +735,11 @@ const AdminDashboard = () => {
                     </td>
                     <td className="mobile-table td">
                       <div className="responsive-text-sm font-medium text-gray-900">{violation.violator_name}</div>
+                      {violation.violator_license && (
+                        <div className="text-xs text-blue-600 font-mono mt-1">
+                          License: {violation.violator_license}
+                        </div>
+                      )}
                       {violation.is_repeat_offender && (
                         <div className="flex items-center mt-1">
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -758,9 +763,14 @@ const AdminDashboard = () => {
                       <div className="responsive-text-sm text-gray-900">{violation.enforcer_name}</div>
                     </td>
                     <td className="mobile-table td">
-                      <span className="responsive-text-sm text-gray-500">
-                        {new Date(violation.created_at).toLocaleDateString()}
-                      </span>
+                      <div>
+                        <div className="responsive-text-sm font-medium text-gray-900">
+                          {new Date(violation.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(violation.created_at).toLocaleTimeString()}
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 ))}

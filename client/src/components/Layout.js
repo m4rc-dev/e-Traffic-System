@@ -12,6 +12,7 @@ import {
   Settings,
   User,
   LogOut,
+  AlertTriangle,
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -26,6 +27,7 @@ const Layout = ({ children }) => {
     { name: 'Violations', href: '/violations', icon: FileText },
     { name: 'Enforcers', href: '/enforcers', icon: Users },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
+    { name: 'Repeat Offenders', href: '/repeat-offenders', icon: AlertTriangle },
     { name: 'Settings', href: '/settings', icon: Settings },
   ];
 

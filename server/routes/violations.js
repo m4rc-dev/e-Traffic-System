@@ -24,7 +24,8 @@ router.get('/', async (req, res) => {
       enforcer_id = '',
       start_date = '',
       end_date = '',
-      violation_type = ''
+      violation_type = '',
+      repeat_offender = ''
     } = req.query;
     
     // Ensure limit and page are valid numbers with explicit type conversion
@@ -88,6 +89,13 @@ router.get('/', async (req, res) => {
       params.push(violation_type);
     }
 
+    // Repeat offender filter
+    if (repeat_offender === 'true') {
+      whereClause += ' AND violator_violations.total_violations > 1';
+    } else if (repeat_offender === 'false') {
+      whereClause += ' AND (violator_violations.total_violations IS NULL OR violator_violations.total_violations = 1)';
+    }
+
     // Debug logging
     console.log('Violations query:', {
       page: validPage,
@@ -96,14 +104,31 @@ router.get('/', async (req, res) => {
       paramsCount: params.length
     });
     
-    // Get violations with enforcer info
+    // Get violations with enforcer info and repeat offender detection
     const violations = await query(`
       SELECT 
         v.*,
         u.full_name as enforcer_name,
-        u.badge_number as enforcer_badge
+        u.badge_number as enforcer_badge,
+        CASE 
+          WHEN violator_violations.total_violations > 1 THEN 1 
+          ELSE 0 
+        END as is_repeat_offender,
+        COALESCE(violator_violations.total_violations - 1, 0) as previous_violations_count
       FROM violations v
       JOIN users u ON v.enforcer_id = u.id
+      LEFT JOIN (
+        SELECT 
+          violator_name, 
+          violator_license,
+          COUNT(*) as total_violations
+        FROM violations 
+        GROUP BY violator_name, violator_license
+      ) violator_violations ON (
+        v.violator_name = violator_violations.violator_name AND 
+        (v.violator_license = violator_violations.violator_license OR 
+         (v.violator_license IS NULL AND violator_violations.violator_license IS NULL))
+      )
       ${whereClause}
       ORDER BY v.created_at DESC
       LIMIT ${validLimit} OFFSET ${offset}

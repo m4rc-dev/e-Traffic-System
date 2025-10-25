@@ -53,11 +53,31 @@ router.get('/dashboard', async (req, res) => {
       WHERE status = 'paid'
     `);
     
-    // Get recent violations
+    // Get recent violations with repeat offender detection
     const recentViolations = await query(`
-      SELECT v.*, u.full_name as enforcer_name
+      SELECT 
+        v.*, 
+        u.full_name as enforcer_name,
+        u.badge_number as enforcer_badge,
+        CASE 
+          WHEN violator_violations.total_violations > 1 THEN 1 
+          ELSE 0 
+        END as is_repeat_offender,
+        COALESCE(violator_violations.total_violations - 1, 0) as previous_violations_count
       FROM violations v
       JOIN users u ON v.enforcer_id = u.id
+      LEFT JOIN (
+        SELECT 
+          violator_name, 
+          violator_license,
+          COUNT(*) as total_violations
+        FROM violations 
+        GROUP BY violator_name, violator_license
+      ) violator_violations ON (
+        v.violator_name = violator_violations.violator_name AND 
+        (v.violator_license = violator_violations.violator_license OR 
+         (v.violator_license IS NULL AND violator_violations.violator_license IS NULL))
+      )
       ORDER BY v.created_at DESC
       LIMIT 10
     `);
@@ -77,6 +97,74 @@ router.get('/dashboard', async (req, res) => {
 
   } catch (error) {
     console.error('Dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// @desc    Get repeat offenders statistics
+// @route   GET /api/admin/repeat-offenders
+// @access  Private (Admin only)
+router.get('/repeat-offenders', async (req, res) => {
+  try {
+    const { limit = 20, min_violations = 2 } = req.query;
+    
+    // Get repeat offenders with their violation history
+    const repeatOffenders = await query(`
+      SELECT 
+        violator_name,
+        violator_license,
+        violator_phone,
+        COUNT(*) as total_violations,
+        SUM(fine_amount) as total_fines,
+        SUM(CASE WHEN status = 'paid' THEN fine_amount ELSE 0 END) as paid_fines,
+        SUM(CASE WHEN status = 'pending' THEN fine_amount ELSE 0 END) as pending_fines,
+        MIN(created_at) as first_violation_date,
+        MAX(created_at) as last_violation_date,
+        GROUP_CONCAT(DISTINCT violation_type ORDER BY created_at DESC SEPARATOR ', ') as violation_types,
+        (SELECT violation_type FROM violations v2 
+         WHERE v2.violator_name = violations.violator_name 
+         AND (v2.violator_license = violations.violator_license OR (v2.violator_license IS NULL AND violations.violator_license IS NULL))
+         ORDER BY v2.created_at ASC LIMIT 1) as first_violation_type,
+        (SELECT violation_type FROM violations v3 
+         WHERE v3.violator_name = violations.violator_name 
+         AND (v3.violator_license = violations.violator_license OR (v3.violator_license IS NULL AND violations.violator_license IS NULL))
+         ORDER BY v3.created_at DESC LIMIT 1) as last_violation_type
+      FROM violations 
+      GROUP BY violator_name, violator_license
+      HAVING total_violations >= ?
+      ORDER BY total_violations DESC, last_violation_date DESC
+      LIMIT ?
+    `, [min_violations, limit]);
+
+    // Get repeat offender statistics
+    const [repeatOffenderStats] = await query(`
+      SELECT 
+        COUNT(DISTINCT CONCAT(violator_name, COALESCE(violator_license, ''))) as total_repeat_offenders,
+        AVG(violation_counts.total_violations) as avg_violations_per_offender,
+        MAX(violation_counts.total_violations) as max_violations
+      FROM (
+        SELECT 
+          violator_name, 
+          violator_license,
+          COUNT(*) as total_violations
+        FROM violations 
+        GROUP BY violator_name, violator_license
+        HAVING total_violations >= 2
+      ) violation_counts
+    `);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        repeatOffenders,
+        statistics: repeatOffenderStats
+      }
+    });
+  } catch (error) {
+    console.error('Repeat offenders error:', error);
     res.status(500).json({
       success: false,
       error: 'Server error'

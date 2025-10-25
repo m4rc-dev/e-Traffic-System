@@ -7,6 +7,7 @@ import AdminViolations from './pages/admin/Violations';
 import AdminEnforcers from './pages/admin/Enforcers';
 import AdminReports from './pages/admin/Reports';
 import AdminSettings from './pages/admin/Settings';
+import RepeatOffenders from './pages/admin/RepeatOffenders';
 import Layout from './components/Layout';
 import LoadingSpinner from './components/LoadingSpinner';
 import PageTransition from './components/PageTransition';
@@ -33,6 +34,7 @@ function App() {
               <Route path="/violations" element={<AdminViolations />} />
               <Route path="/enforcers" element={<AdminEnforcers />} />
               <Route path="/reports" element={<AdminReports />} />
+              <Route path="/repeat-offenders" element={<RepeatOffenders />} />
               <Route path="/settings" element={<AdminSettings />} />
             </>
           ) : (

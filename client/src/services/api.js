@@ -60,6 +60,7 @@ export const adminAPI = {
   getNextBadgeNumber: () => api.get('/admin/next-badge-number'),
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (data) => api.put('/admin/settings', data),
+  getRepeatOffenders: (params) => api.get('/admin/repeat-offenders', { params }),
 };
 
 // Violations API

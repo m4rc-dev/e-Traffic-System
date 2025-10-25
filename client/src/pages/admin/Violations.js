@@ -16,6 +16,7 @@ const Violations = () => {
     start_date: '',
     end_date: '',
     violation_type: '',
+    repeat_offender: '',
   });
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingViolation, setEditingViolation] = useState(null);
@@ -491,6 +492,22 @@ const Violations = () => {
               </select>
             </div>
 
+            {/* Repeat offender filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Repeat Offender
+              </label>
+              <select
+                className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
+                value={filters.repeat_offender}
+                onChange={(e) => handleFilterChange('repeat_offender', e.target.value)}
+              >
+                <option value="">All Violators</option>
+                <option value="true">Repeat Offenders Only</option>
+                <option value="false">First-Time Offenders Only</option>
+              </select>
+            </div>
+
             {/* Date range */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -624,7 +641,7 @@ const Violations = () => {
                   Enforcer
                 </th>
                 <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
+                  Date & Time
                 </th>
                 <th className="px-2 sm:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -643,6 +660,18 @@ const Violations = () => {
                         <div className="text-sm text-gray-500">
                           {violation.violator_phone}
                         </div>
+                        {violation.violator_license && (
+                          <div className="text-xs text-blue-600 font-mono mt-1">
+                            License: {violation.violator_license}
+                          </div>
+                        )}
+                        {violation.is_repeat_offender && (
+                          <div className="flex items-center mt-1">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                              🔁 Repeat ({violation.previous_violations_count + 1})
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </td>
                     <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
@@ -669,7 +698,14 @@ const Violations = () => {
                       </div>
                     </td>
                     <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(violation.created_at).toLocaleDateString()}
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {new Date(violation.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(violation.created_at).toLocaleTimeString()}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
