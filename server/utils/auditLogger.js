@@ -1,35 +1,34 @@
-const { query } = require('../config/database');
+const { getFirebaseService } = require('../config/database');
 
 /**
  * Log audit trail for user actions
- * @param {number} userId - ID of the user performing the action
+ * @param {string} userId - ID of the user performing the action
  * @param {string} action - Action being performed (e.g., 'CREATE_ENFORCER', 'UPDATE_VIOLATION')
  * @param {string} tableName - Database table being affected
- * @param {number} recordId - ID of the record being affected
+ * @param {string} recordId - ID of the record being affected
  * @param {object} oldValues - Previous values (for updates)
  * @param {object} newValues - New values (for creates/updates)
  * @param {object} req - Express request object (for IP and User-Agent)
  */
 const logAudit = async (userId, action, tableName, recordId = null, oldValues = null, newValues = null, req = null) => {
   try {
+    const firebaseService = getFirebaseService();
+    
     // Get IP address and User-Agent from request
     const ipAddress = req ? (req.ip || req.connection?.remoteAddress || 'unknown') : 'system';
     const userAgent = req ? req.get('User-Agent') || 'unknown' : 'system';
 
-    // Insert audit log
-    await query(`
-      INSERT INTO audit_logs (user_id, action, table_name, record_id, old_values, new_values, ip_address, user_agent)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      userId,
+    // Create audit log entry
+    await firebaseService.createAuditLog({
+      user_id: userId,
       action,
-      tableName,
-      recordId,
-      oldValues ? JSON.stringify(oldValues) : null,
-      newValues ? JSON.stringify(newValues) : null,
-      ipAddress,
-      userAgent
-    ]);
+      table_name: tableName,
+      record_id: recordId,
+      old_values: oldValues,
+      new_values: newValues,
+      ip_address: ipAddress,
+      user_agent: userAgent
+    });
 
     console.log(`✅ Audit logged: ${action} on ${tableName} by user ${userId}`);
   } catch (error) {
@@ -45,6 +44,7 @@ const logAudit = async (userId, action, tableName, recordId = null, oldValues = 
  */
 const getAuditLogs = async (filters = {}) => {
   try {
+    const firebaseService = getFirebaseService();
     const { 
       page = 1, 
       limit = 10, 
@@ -56,65 +56,59 @@ const getAuditLogs = async (filters = {}) => {
     } = filters;
 
     const offset = (page - 1) * limit;
-    let whereClause = 'WHERE 1=1';
-    let params = [];
+    const conditions = {};
 
     // Add filters
     if (userId) {
-      whereClause += ' AND al.user_id = ?';
-      params.push(userId);
-    }
-
-    if (action) {
-      whereClause += ' AND al.action LIKE ?';
-      params.push(`%${action}%`);
+      conditions.user_id = userId;
     }
 
     if (tableName) {
-      whereClause += ' AND al.table_name = ?';
-      params.push(tableName);
-    }
-
-    if (startDate) {
-      whereClause += ' AND DATE(al.created_at) >= ?';
-      params.push(startDate);
-    }
-
-    if (endDate) {
-      whereClause += ' AND DATE(al.created_at) <= ?';
-      params.push(endDate);
+      conditions.table_name = tableName;
     }
 
     // Get audit logs with user information
-    const logs = await query(`
-      SELECT 
-        al.*,
-        u.full_name as user_name,
-        u.email as user_email,
-        u.role as user_role
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      ${whereClause}
-      ORDER BY al.created_at DESC
-      LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
-    `, params);
+    const logs = await firebaseService.getAuditLogsWithUser(conditions, {
+      orderBy: { field: 'created_at', direction: 'desc' },
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    // Filter by action and date if specified (Firebase doesn't support LIKE queries)
+    let filteredLogs = logs;
+    
+    if (action) {
+      filteredLogs = filteredLogs.filter(log => 
+        log.action && log.action.toLowerCase().includes(action.toLowerCase())
+      );
+    }
+
+    if (startDate || endDate) {
+      filteredLogs = filteredLogs.filter(log => {
+        if (!log.created_at) return false;
+        
+        const logDate = new Date(log.created_at.toDate ? log.created_at.toDate() : log.created_at);
+        const start = startDate ? new Date(startDate) : null;
+        const end = endDate ? new Date(endDate) : null;
+        
+        if (start && logDate < start) return false;
+        if (end && logDate > end) return false;
+        
+        return true;
+      });
+    }
 
     // Get total count
-    const [totalCount] = await query(`
-      SELECT COUNT(*) as count 
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      ${whereClause}
-    `, params);
+    const totalCount = await firebaseService.count('audit_logs', conditions);
 
     return {
       success: true,
       data: {
-        logs,
+        logs: filteredLogs,
         pagination: {
           current: parseInt(page),
-          total: Math.ceil(totalCount.count / limit),
-          totalRecords: totalCount.count
+          total: Math.ceil(totalCount / limit),
+          totalRecords: totalCount
         }
       }
     };
@@ -135,44 +129,63 @@ const getAuditLogs = async (filters = {}) => {
  */
 const getAuditStats = async () => {
   try {
+    const firebaseService = getFirebaseService();
+    
     // Get total audit logs
-    const [totalLogs] = await query('SELECT COUNT(*) as count FROM audit_logs');
+    const totalLogs = await firebaseService.count('audit_logs');
+    
+    // Get all logs for statistics
+    const allLogs = await firebaseService.getAuditLogs({}, { limit: 1000 });
     
     // Get logs by action
-    const logsByAction = await query(`
-      SELECT action, COUNT(*) as count 
-      FROM audit_logs 
-      GROUP BY action 
-      ORDER BY count DESC
-    `);
+    const logsByAction = {};
+    const logsByTable = {};
+    const recentActivity = {};
     
-    // Get logs by table
-    const logsByTable = await query(`
-      SELECT table_name, COUNT(*) as count 
-      FROM audit_logs 
-      WHERE table_name IS NOT NULL
-      GROUP BY table_name 
-      ORDER BY count DESC
-    `);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // Get recent activity (last 7 days)
-    const recentActivity = await query(`
-      SELECT 
-        DATE(created_at) as date,
-        COUNT(*) as count
-      FROM audit_logs 
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
-    `);
+    allLogs.forEach(log => {
+      // Count by action
+      if (log.action) {
+        logsByAction[log.action] = (logsByAction[log.action] || 0) + 1;
+      }
+      
+      // Count by table
+      if (log.table_name) {
+        logsByTable[log.table_name] = (logsByTable[log.table_name] || 0) + 1;
+      }
+      
+      // Count recent activity
+      if (log.created_at) {
+        const logDate = new Date(log.created_at.toDate ? log.created_at.toDate() : log.created_at);
+        if (logDate >= sevenDaysAgo) {
+          const dateKey = logDate.toISOString().split('T')[0];
+          recentActivity[dateKey] = (recentActivity[dateKey] || 0) + 1;
+        }
+      }
+    });
+
+    // Convert to arrays for consistency with MySQL version
+    const logsByActionArray = Object.entries(logsByAction)
+      .map(([action, count]) => ({ action, count }))
+      .sort((a, b) => b.count - a.count);
+    
+    const logsByTableArray = Object.entries(logsByTable)
+      .map(([table_name, count]) => ({ table_name, count }))
+      .sort((a, b) => b.count - a.count);
+    
+    const recentActivityArray = Object.entries(recentActivity)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
 
     return {
       success: true,
       data: {
-        totalLogs: totalLogs.count,
-        logsByAction,
-        logsByTable,
-        recentActivity
+        totalLogs,
+        logsByAction: logsByActionArray,
+        logsByTable: logsByTableArray,
+        recentActivity: recentActivityArray
       }
     };
 

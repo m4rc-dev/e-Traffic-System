@@ -3,7 +3,7 @@
  * Format: BADGE001, BADGE002, BADGE003, etc.
  */
 
-const { query } = require('../config/database');
+const { getFirebaseService } = require('../config/database');
 
 /**
  * Generate the next available badge number
@@ -12,29 +12,32 @@ const { query } = require('../config/database');
  */
 async function generateNextBadgeNumber(prefix = 'BADGE') {
   try {
-    // Get the highest badge number with the given prefix
-    const result = await query(`
-      SELECT badge_number 
-      FROM users 
-      WHERE badge_number LIKE ? 
-      AND role = 'enforcer'
-      ORDER BY CAST(SUBSTRING(badge_number, ?) AS UNSIGNED) DESC 
-      LIMIT 1
-    `, [`${prefix}%`, prefix.length + 1]);
-
+    const firebaseService = getFirebaseService();
+    
+    // Get all enforcers with just the limit, no ordering (to avoid Firebase indexing issues)
+    const enforcers = await firebaseService.findMany('users', { role: 'enforcer' }, { limit: 1000 });
+    
     let nextNumber = 1;
-
-    if (result.length > 0) {
-      const lastBadge = result[0].badge_number;
-      // Extract number part from badge (e.g., "BADGE003" -> "003")
-      const numberPart = lastBadge.substring(prefix.length);
-      const lastNumber = parseInt(numberPart, 10);
+    
+    if (enforcers && enforcers.length > 0) {
+      // Find the highest badge number with the given prefix
+      const badgeNumbers = enforcers
+        .filter(enforcer => enforcer && enforcer.badge_number && enforcer.badge_number.startsWith(prefix))
+        .map(enforcer => enforcer.badge_number)
+        .sort();
       
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
+      if (badgeNumbers.length > 0) {
+        const lastBadge = badgeNumbers[badgeNumbers.length - 1];
+        // Extract number part from badge (e.g., "BADGE003" -> "003")
+        const numberPart = lastBadge.substring(prefix.length);
+        const lastNumber = parseInt(numberPart, 10);
+        
+        if (!isNaN(lastNumber)) {
+          nextNumber = lastNumber + 1;
+        }
       }
     }
-
+    
     // Format with leading zeros (3 digits)
     const formattedNumber = nextNumber.toString().padStart(3, '0');
     return `${prefix}${formattedNumber}`;
@@ -53,11 +56,9 @@ async function generateNextBadgeNumber(prefix = 'BADGE') {
  */
 async function isBadgeNumberAvailable(badgeNumber) {
   try {
-    const result = await query(
-      'SELECT id FROM users WHERE badge_number = ? AND role = "enforcer"',
-      [badgeNumber]
-    );
-    return result.length === 0;
+    const firebaseService = getFirebaseService();
+    const existingUser = await firebaseService.findUserByBadgeNumber(badgeNumber);
+    return !existingUser;
   } catch (error) {
     console.error('Error checking badge number availability:', error);
     return false;

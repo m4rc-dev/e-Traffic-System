@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { query } = require('../config/database');
+const { getFirebaseService } = require('../config/database');
 const { protect } = require('../middleware/auth');
 const { logAudit } = require('../utils/auditLogger');
 
@@ -26,14 +26,12 @@ router.post('/login', [
     }
 
     const { email, password } = req.body;
+    const firebaseService = getFirebaseService();
 
     // Check if user exists
-    const users = await query(
-      'SELECT * FROM users WHERE email = ? AND is_active = TRUE',
-      [email]
-    );
+    const user = await firebaseService.findUserByEmail(email);
 
-    if (users.length === 0) {
+    if (!user || !user.is_active) {
       // Log failed login attempt
       await logAudit(
         null, // No user ID for failed login
@@ -50,8 +48,6 @@ router.post('/login', [
         error: 'Invalid credentials'
       });
     }
-
-    const user = users[0];
 
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
@@ -74,10 +70,9 @@ router.post('/login', [
     }
 
     // Update last login
-    await query(
-      'UPDATE users SET last_login = NOW() WHERE id = ?',
-      [user.id]
-    );
+    await firebaseService.updateUser(user.id, {
+      last_login: new Date()
+    });
 
     // Create token
     const token = jwt.sign(
@@ -159,21 +154,17 @@ router.put('/change-password', [
     }
 
     const { currentPassword, newPassword } = req.body;
+    const firebaseService = getFirebaseService();
 
     // Get user with password
-    const users = await query(
-      'SELECT password FROM users WHERE id = ?',
-      [req.user.id]
-    );
+    const user = await firebaseService.findById('users', req.user.id);
 
-    if (users.length === 0) {
+    if (!user) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
-
-    const user = users[0];
 
     // Verify current password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
@@ -189,10 +180,9 @@ router.put('/change-password', [
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
     // Update password
-    await query(
-      'UPDATE users SET password = ? WHERE id = ?',
-      [hashedPassword, req.user.id]
-    );
+    await firebaseService.updateUser(user.id, {
+      password: hashedPassword
+    });
 
     res.status(200).json({
       success: true,

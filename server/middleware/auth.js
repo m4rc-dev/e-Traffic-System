@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { query } = require('../config/database');
+const { getFirebaseService } = require('../config/database');
 
 const protect = async (req, res, next) => {
   let token;
@@ -18,21 +18,17 @@ const protect = async (req, res, next) => {
   try {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const firebaseService = getFirebaseService();
 
     // Get user from database
-    const users = await query(
-      'SELECT id, username, email, role, full_name, badge_number, is_active FROM users WHERE id = ?',
-      [decoded.id]
-    );
+    const user = await firebaseService.findById('users', decoded.id);
 
-    if (users.length === 0) {
+    if (!user) {
       return res.status(401).json({
         success: false,
         error: 'User not found'
       });
     }
-
-    const user = users[0];
 
     if (!user.is_active) {
       return res.status(401).json({
@@ -41,6 +37,8 @@ const protect = async (req, res, next) => {
       });
     }
 
+    // Remove password from user object
+    delete user.password;
     req.user = user;
     next();
   } catch (error) {

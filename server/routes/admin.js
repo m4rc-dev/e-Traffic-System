@@ -1,1292 +1,518 @@
 const express = require('express');
-
 const bcrypt = require('bcryptjs');
-
 const { body, validationResult } = require('express-validator');
-
-const { query } = require('../config/database');
-
+const { getFirebaseService } = require('../config/database');
 const { protect, adminOnly } = require('../middleware/auth');
-
 const { generateNextBadgeNumber } = require('../utils/badgeNumberGenerator');
-
 const { logAudit } = require('../utils/auditLogger');
-
-
 
 const router = express.Router();
 
-
-
 // Apply admin protection to all routes
-
 router.use(protect, adminOnly);
 
-
-
 // @desc    Get dashboard statistics
-
 // @route   GET /api/admin/dashboard
-
 // @access  Private (Admin only)
-
 router.get('/dashboard', async (req, res) => {
-
   try {
-
+    const firebaseService = getFirebaseService();
+    
     // Get total violations
-
-    const [totalViolations] = await query('SELECT COUNT(*) as count FROM violations');
-
+    const totalViolations = await firebaseService.count('violations');
     
-
     // Get violations by status
-
-    const violationsByStatus = await query(`
-
-      SELECT status, COUNT(*) as count 
-
-      FROM violations 
-
-      GROUP BY status
-
-    `);
-
-    
-
-    // Get violations by month (last 6 months) with comprehensive data
-
-    const monthlyData = await query(`
-
-      SELECT 
-
-        DATE_FORMAT(created_at, '%Y-%m') as month,
-
-        COUNT(*) as totalViolations,
-
-        COALESCE(SUM(fine_amount), 0) as totalFines,
-
-        COALESCE(SUM(CASE WHEN status = 'paid' THEN fine_amount ELSE 0 END), 0) as collectedFines,
-
-        COALESCE(COUNT(CASE WHEN status = 'paid' THEN 1 END), 0) as paidViolations
-
-      FROM violations 
-
-      WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-
-      GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-
-      ORDER BY month DESC
-
-    `);
-
-    
-
-    // Get total enforcers
-
-    const [totalEnforcers] = await query('SELECT COUNT(*) as count FROM users WHERE role = "enforcer"');
-
-    
-
-    // Get active enforcers
-
-    const [activeEnforcers] = await query('SELECT COUNT(*) as count FROM users WHERE role = "enforcer" AND is_active = TRUE');
-
-    
-
-    // Get total fines collected
-
-    const [totalFines] = await query(`
-
-      SELECT COALESCE(SUM(fine_amount), 0) as total 
-
-      FROM violations 
-
-      WHERE status = 'paid'
-
-    `);
-
-    
-
-    // Get recent violations with repeat offender detection
-
-    const recentViolations = await query(`
-
-      SELECT 
-
-        v.*, 
-
-        u.full_name as enforcer_name,
-
-        u.badge_number as enforcer_badge,
-
-        CASE 
-
-          WHEN violator_violations.total_violations > 1 THEN 1 
-
-          ELSE 0 
-
-        END as is_repeat_offender,
-
-        COALESCE(violator_violations.total_violations - 1, 0) as previous_violations_count
-
-      FROM violations v
-
-      JOIN users u ON v.enforcer_id = u.id
-
-      LEFT JOIN (
-
-        SELECT 
-
-          violator_name, 
-
-          violator_license,
-
-          COUNT(*) as total_violations
-
-        FROM violations 
-
-        GROUP BY violator_name, violator_license
-
-      ) violator_violations ON (
-
-        v.violator_name = violator_violations.violator_name AND 
-
-        (v.violator_license = violator_violations.violator_license OR 
-
-         (v.violator_license IS NULL AND violator_violations.violator_license IS NULL))
-
-      )
-
-      ORDER BY v.created_at DESC
-
-      LIMIT 10
-
-    `);
-
-
-
-    res.status(200).json({
-
-      success: true,
-
-      data: {
-
-        totalViolations: totalViolations.count,
-
-        violationsByStatus,
-
-        monthlyData,
-
-        totalEnforcers: totalEnforcers.count,
-
-        activeEnforcers: activeEnforcers.count,
-
-        totalFines: parseFloat(totalFines.total),
-
-        recentViolations
-
-      }
-
+    const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
+    const violationsByStatusObj = {};
+    allViolations.forEach(violation => {
+      const status = violation.status || 'unknown';
+      violationsByStatusObj[status] = (violationsByStatusObj[status] || 0) + 1;
     });
-
-
-
-  } catch (error) {
-
-    console.error('Dashboard error:', error);
-
-    res.status(500).json({
-
-      success: false,
-
-      error: 'Server error'
-
-    });
-
-  }
-
-});
-
-
-
-// @desc    Get repeat offenders statistics
-
-// @route   GET /api/admin/repeat-offenders
-
-// @access  Private (Admin only)
-
-router.get('/repeat-offenders', async (req, res) => {
-
-  try {
-
-    const { limit = 20, min_violations = 2 } = req.query;
-
     
-
-    // Convert to integers
-
-    const validLimit = Math.max(1, Math.min(100, parseInt(limit) || 20));
-
-    const validMinViolations = Math.max(1, parseInt(min_violations) || 2);
-
+    // Convert to array format expected by frontend
+    const violationsByStatus = Object.entries(violationsByStatusObj).map(([status, count]) => ({
+      status,
+      count
+    }));
     
-
-    // Get repeat offenders with their violation history
-
-    const repeatOffenders = await query(`
-
-      SELECT 
-
-        violator_name,
-
-        violator_license,
-
-        violator_phone,
-
-        COUNT(*) as total_violations,
-
-        SUM(fine_amount) as total_fines,
-
-        SUM(CASE WHEN status = 'paid' THEN fine_amount ELSE 0 END) as paid_fines,
-
-        SUM(CASE WHEN status = 'pending' THEN fine_amount ELSE 0 END) as pending_fines,
-
-        MIN(created_at) as first_violation_date,
-
-        MAX(created_at) as last_violation_date,
-
-        GROUP_CONCAT(DISTINCT violation_type ORDER BY created_at DESC SEPARATOR ', ') as violation_types,
-
-        (SELECT violation_type FROM violations v2 
-
-         WHERE v2.violator_name = violations.violator_name 
-
-         AND (v2.violator_license = violations.violator_license OR (v2.violator_license IS NULL AND violations.violator_license IS NULL))
-
-         ORDER BY v2.created_at ASC LIMIT 1) as first_violation_type,
-
-        (SELECT violation_type FROM violations v3 
-
-         WHERE v3.violator_name = violations.violator_name 
-
-         AND (v3.violator_license = violations.violator_license OR (v3.violator_license IS NULL AND violations.violator_license IS NULL))
-
-         ORDER BY v3.created_at DESC LIMIT 1) as last_violation_type
-
-      FROM violations 
-
-      GROUP BY violator_name, violator_license
-
-      HAVING total_violations >= ?
-
-      ORDER BY total_violations DESC, last_violation_date DESC
-
-      LIMIT ?
-
-    `, [validMinViolations, validLimit]);
-
-
-
-    // Get repeat offender statistics
-
-    const statsResult = await query(`
-
-      SELECT 
-
-        COUNT(DISTINCT CONCAT(violator_name, COALESCE(violator_license, ''))) as total_repeat_offenders,
-
-        AVG(violation_counts.total_violations) as avg_violations_per_offender,
-
-        MAX(violation_counts.total_violations) as max_violations
-
-      FROM (
-
-        SELECT 
-
-          violator_name, 
-
-          violator_license,
-
-          COUNT(*) as total_violations
-
-        FROM violations 
-
-        GROUP BY violator_name, violator_license
-
-        HAVING total_violations >= 2
-
-      ) violation_counts
-
-    `);
-
+    // Get violations by month (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     
-
-    const repeatOffenderStats = statsResult[0] || {
-      total_repeat_offenders: 0,
-      avg_violations_per_offender: 0,
-      max_violations: 0
-    };
-
-
-
-    res.status(200).json({
-
-      success: true,
-
-      data: {
-
-        repeatOffenders,
-
-        statistics: repeatOffenderStats
-
-      }
-
-    });
-
-  } catch (error) {
-
-    console.error('Repeat offenders error:', error);
-    
-    console.error('Error details:', {
-      message: error.message,
-      stack: error.stack,
-      code: error.code,
-      errno: error.errno
-    });
-
-    res.status(500).json({
-
-      success: false,
-
-      error: 'Server error',
+    const monthlyData = [];
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date();
+      month.setMonth(month.getMonth() - i);
+      const monthKey = month.toISOString().substring(0, 7); // YYYY-MM format
       
-      details: error.message
-
-    });
-
-  }
-
-});
-
-
-
-// @desc    Get next available badge number
-
-// @route   GET /api/admin/next-badge-number
-
-// @access  Private (Admin only)
-
-router.get('/next-badge-number', async (req, res) => {
-
-  try {
-
-    const nextBadgeNumber = await generateNextBadgeNumber();
-
+      const monthViolations = allViolations.filter(violation => {
+        if (!violation.created_at) return false;
+        const violationDate = new Date(violation.created_at.toDate ? violation.created_at.toDate() : violation.created_at);
+        const violationMonth = violationDate.toISOString().substring(0, 7);
+        return violationMonth === monthKey;
+      });
+      
+      const totalFines = monthViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+      const collectedFines = monthViolations
+        .filter(v => v.status === 'paid')
+        .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+      const paidViolations = monthViolations.filter(v => v.status === 'paid').length;
+      
+      monthlyData.push({
+        month: monthKey,
+        totalViolations: monthViolations.length,
+        totalFines,
+        collectedFines,
+        paidViolations
+      });
+    }
     
-
-    res.status(200).json({
-
-      success: true,
-
-      data: {
-
-        next_badge_number: nextBadgeNumber
-
+    // Get total enforcers
+    const totalEnforcers = await firebaseService.count('users', { role: 'enforcer' });
+    
+    // Get active enforcers
+    const activeEnforcers = await firebaseService.count('users', { role: 'enforcer', is_active: true });
+    
+    // Get total fines collected
+    const paidViolations = allViolations.filter(v => v.status === 'paid');
+    const totalFines = paidViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+    
+    // Get recent violations (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentViolations = allViolations.filter(violation => {
+      if (!violation.created_at) return false;
+      const violationDate = new Date(violation.created_at.toDate ? violation.created_at.toDate() : violation.created_at);
+      return violationDate >= sevenDaysAgo;
+    });
+    
+    // Get violations by enforcer
+    const violationsByEnforcer = {};
+    allViolations.forEach(violation => {
+      if (violation.enforcer_id) {
+        violationsByEnforcer[violation.enforcer_id] = (violationsByEnforcer[violation.enforcer_id] || 0) + 1;
       }
-
     });
-
+    
+    // Get top enforcers with names
+    const topEnforcers = [];
+    for (const [enforcerId, count] of Object.entries(violationsByEnforcer)) {
+      const enforcer = await firebaseService.findById('users', enforcerId);
+      if (enforcer) {
+        topEnforcers.push({
+          enforcer_name: enforcer.full_name,
+          violation_count: count
+        });
+      }
+    }
+    topEnforcers.sort((a, b) => b.violation_count - a.violation_count);
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        totalViolations,
+        violationsByStatus,
+        monthlyData,
+        totalEnforcers,
+        activeEnforcers,
+        totalFines,
+        recentViolations: recentViolations.slice(0, 10), // Return array of recent violations, limited to 10
+        violationsByEnforcer: topEnforcers.slice(0, 10)
+      }
+    });
+    
   } catch (error) {
-
-    console.error('Get next badge number error:', error);
-
+    console.error('Dashboard error:', error);
     res.status(500).json({
-
       success: false,
-
-      error: 'Failed to generate badge number'
-
+      error: 'Failed to load dashboard data'
     });
-
   }
-
 });
 
+// @desc    Get repeat offenders
+// @route   GET /api/admin/repeat-offenders
+// @access  Private (Admin only)
+router.get('/repeat-offenders', async (req, res) => {
+  try {
+    const firebaseService = getFirebaseService();
+    
+    // Get all violations
+    const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
+    
+    // Group by violator (using license plate as identifier)
+    const violatorGroups = {};
+    allViolations.forEach(violation => {
+      const key = violation.violator_license || violation.vehicle_plate || violation.violator_name;
+      if (key) {
+        if (!violatorGroups[key]) {
+          violatorGroups[key] = [];
+        }
+        violatorGroups[key].push(violation);
+      }
+    });
+    
+    // Find repeat offenders (2 or more violations)
+    const repeatOffenders = Object.entries(violatorGroups)
+      .filter(([key, violations]) => violations.length >= 2)
+      .map(([key, violations]) => ({
+        identifier: key,
+        violation_count: violations.length,
+        total_fine: violations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
+        last_violation: violations.sort((a, b) => 
+          new Date(b.created_at.toDate ? b.created_at.toDate() : b.created_at) - 
+          new Date(a.created_at.toDate ? a.created_at.toDate() : a.created_at)
+        )[0],
+        violations: violations.slice(0, 5) // Show last 5 violations
+      }))
+      .sort((a, b) => b.violation_count - a.violation_count);
+    
+    res.status(200).json({
+      success: true,
+      data: repeatOffenders
+    });
+    
+  } catch (error) {
+    console.error('Repeat offenders error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load repeat offenders data'
+    });
+  }
+});
 
+// @desc    Get violation statistics
+// @route   GET /api/admin/violation-stats
+// @access  Private (Admin only)
+router.get('/violation-stats', async (req, res) => {
+  try {
+    const firebaseService = getFirebaseService();
+    
+    // Get all violations
+    const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
+    
+    // Calculate statistics
+    const stats = {
+      totalViolations: allViolations.length,
+      totalFines: allViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
+      collectedFines: allViolations
+        .filter(v => v.status === 'paid')
+        .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
+      pendingFines: allViolations
+        .filter(v => v.status === 'pending' || v.status === 'issued')
+        .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
+      paidViolations: allViolations.filter(v => v.status === 'paid').length,
+      pendingViolations: allViolations.filter(v => v.status === 'pending' || v.status === 'issued').length,
+      disputedViolations: allViolations.filter(v => v.status === 'disputed').length,
+      cancelledViolations: allViolations.filter(v => v.status === 'cancelled').length
+    };
+    
+    res.status(200).json({
+      success: true,
+      data: stats
+    });
+    
+  } catch (error) {
+    console.error('Violation stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load violation statistics'
+    });
+  }
+});
 
 // @desc    Get all enforcers
-
 // @route   GET /api/admin/enforcers
-
 // @access  Private (Admin only)
-
 router.get('/enforcers', async (req, res) => {
-
   try {
-
-    const { page = 1, limit = 10, search = '', status = '' } = req.query;
-
+    const firebaseService = getFirebaseService();
     
-
-    // Ensure limit and page are valid numbers with explicit type conversion
-
-    const validLimit = Math.max(1, Math.min(100, parseInt(limit) || 10));
-
-    const validPage = Math.max(1, parseInt(page) || 1);
-
-    const offset = (validPage - 1) * validLimit;
-
+    // Get enforcers without ordering (Firebase doesn't support orderBy on non-indexed fields easily)
+    let enforcers = await firebaseService.getUsers({ role: 'enforcer' }, { limit: 1000 });
     
-
-    // Final validation to ensure we have valid numbers
-
-    if (isNaN(validLimit) || isNaN(validPage) || isNaN(offset)) {
-
-      throw new Error(`Invalid pagination parameters: limit=${validLimit}, page=${validPage}, offset=${offset}`);
-
-    }
-
-    
-
-    // Double-check types
-
-    if (typeof validLimit !== 'number' || isNaN(validLimit)) {
-
-      throw new Error(`Invalid limit: ${limit}, converted to: ${validLimit}`);
-
-    }
-
-    if (typeof validPage !== 'number' || isNaN(validPage)) {
-
-      throw new Error(`Invalid page: ${page}, converted to: ${validPage}`);
-
-    }
-
-    if (typeof offset !== 'number' || isNaN(offset)) {
-
-      throw new Error(`Invalid offset: ${offset}`);
-
-    }
-
-
-
-    let whereClause = 'WHERE role = "enforcer"';
-
-    let params = [];
-
-
-
-    if (search) {
-
-      whereClause += ' AND (full_name LIKE ? OR badge_number LIKE ? OR email LIKE ?)';
-
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
-
-    }
-
-
-
-    if (status) {
-
-      whereClause += ' AND is_active = ?';
-
-      params.push(status === 'active' ? 1 : 0);
-
-    }
-
-
-
-    // Debug logging
-
-    console.log('Enforcers query:', {
-
-      page: validPage,
-
-      limit: validLimit,
-
-      offset,
-
-      paramsCount: params.length
-
+    // Sort by created_at in memory (descending - newest first)
+    enforcers.sort((a, b) => {
+      const aDate = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0);
+      const bDate = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0);
+      return bDate - aDate;
     });
-
     
-
-    // Get enforcers
-
-    const enforcers = await query(`
-
-      SELECT id, username, email, full_name, badge_number, phone_number, is_active, last_login, created_at
-
-      FROM users 
-
-      ${whereClause}
-
-      ORDER BY created_at DESC
-
-      LIMIT ? OFFSET ?
-
-    `, [...params, validLimit, offset]);
-
-
-
-    // Get total count
-
-    const [totalCount] = await query(`
-
-      SELECT COUNT(*) as count 
-
-      FROM users 
-
-      ${whereClause}
-
-    `, params);
-
-
-
+    // Remove passwords from response
+    const safeEnforcers = enforcers.map(enforcer => {
+      const { password, ...safeEnforcer } = enforcer;
+      return safeEnforcer;
+    });
+    
     res.status(200).json({
-
       success: true,
-
-      data: {
-
-        enforcers,
-
-        pagination: {
-
-          current: validPage,
-
-          total: Math.ceil(totalCount.count / validLimit),
-
-          totalRecords: totalCount.count
-
-        }
-
-      }
-
+      data: safeEnforcers
     });
-
-
-
+    
   } catch (error) {
-
     console.error('Get enforcers error:', error);
-
     res.status(500).json({
-
       success: false,
-
-      error: 'Server error'
-
+      error: 'Failed to load enforcers'
     });
-
   }
-
 });
 
-
+// @desc    Get next badge number
+// @route   GET /api/admin/next-badge-number
+// @access  Private (Admin only)
+router.get('/next-badge-number', async (req, res) => {
+  try {
+    const badgeNumber = await generateNextBadgeNumber();
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        next_badge_number: badgeNumber
+      }
+    });
+  } catch (error) {
+    console.error('Get next badge number error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate badge number'
+    });
+  }
+});
 
 // @desc    Create new enforcer
-
 // @route   POST /api/admin/enforcers
-
 // @access  Private (Admin only)
-
 router.post('/enforcers', [
-
-  body('username').isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
-
+  body('username').notEmpty().withMessage('Username is required'),
   body('email').isEmail().withMessage('Please provide a valid email'),
-
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
-
   body('full_name').notEmpty().withMessage('Full name is required'),
-
-  body('badge_number').notEmpty().withMessage('Badge number is required'),
-
   body('phone_number').optional().isMobilePhone().withMessage('Please provide a valid phone number')
-
 ], async (req, res) => {
-
   try {
-
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
-
       return res.status(400).json({
-
         success: false,
-
         error: 'Validation error',
-
         details: errors.array()
-
       });
-
     }
 
+    const { username, email, password, full_name, phone_number } = req.body;
+    const firebaseService = getFirebaseService();
 
-
-    const { username, email, password, full_name, badge_number, phone_number } = req.body;
-
-
-
-    // Check each field individually for specific error messages
-
-    const duplicateErrors = [];
-
-    
-
-    // Check username
-
-    const [existingUsername] = await query(
-
-      'SELECT id FROM users WHERE username = ?',
-
-      [username]
-
-    );
-
-    if (existingUsername) {
-
-      duplicateErrors.push({ param: 'username', msg: 'Username already exists' });
-
-    }
-
-    
-
-    // Check email
-
-    const [existingEmail] = await query(
-
-      'SELECT id FROM users WHERE email = ?',
-
-      [email]
-
-    );
-
-    if (existingEmail) {
-
-      duplicateErrors.push({ param: 'email', msg: 'Email already exists' });
-
-    }
-
-    
-
-    // Check badge number
-
-    const [existingBadge] = await query(
-
-      'SELECT id FROM users WHERE badge_number = ?',
-
-      [badge_number]
-
-    );
-
-    if (existingBadge) {
-
-      duplicateErrors.push({ param: 'badge_number', msg: 'Badge number already exists' });
-
-    }
-
-
-
-    if (duplicateErrors.length > 0) {
-
+    // Check if username already exists
+    const existingUserByUsername = await firebaseService.findUserByUsername(username);
+    if (existingUserByUsername) {
       return res.status(400).json({
-
         success: false,
-
-        error: 'Validation error',
-
-        details: duplicateErrors
-
+        error: 'Username already exists'
       });
-
     }
 
+    // Check if email already exists
+    const existingUserByEmail = await firebaseService.findUserByEmail(email);
+    if (existingUserByEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email already exists'
+      });
+    }
 
+    // Generate badge number
+    const badgeNumber = await generateNextBadgeNumber();
 
     // Hash password
-
     const salt = await bcrypt.genSalt(12);
-
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Create enforcer
+    const enforcer = await firebaseService.createUser({
+      username,
+      email,
+      password: hashedPassword,
+      role: 'enforcer',
+      full_name,
+      badge_number: badgeNumber,
+      phone_number: phone_number || '',
+      is_active: true
+    });
 
-
-    // Create enforcer with IoT device compatibility
-
-    // - role: 'enforcer' allows access to IoT device endpoints
-
-    // - is_active: TRUE enables login through /api/auth/login
-
-    // - Hashed password ensures secure authentication
-
-    const result = await query(`
-
-      INSERT INTO users (username, email, password, role, full_name, badge_number, phone_number, is_active)
-
-      VALUES (?, ?, ?, 'enforcer', ?, ?, ?, TRUE)
-
-    `, [username, email, hashedPassword, full_name, badge_number, phone_number]);
-
-
-
-    // Get created enforcer
-
-    const [newEnforcer] = await query(
-
-      'SELECT id, username, email, full_name, badge_number, phone_number, is_active, created_at FROM users WHERE id = ?',
-
-      [result.insertId]
-
-    );
-
-
-
-    // Log audit trail
-
+    // Log audit
     await logAudit(
-
       req.user.id,
-
       'CREATE_ENFORCER',
-
       'users',
-
-      newEnforcer.id,
-
+      enforcer.id,
       null,
-
-      newEnforcer,
-
+      { username, email, full_name, badge_number: badgeNumber },
       req
-
     );
 
-
+    // Remove password from response
+    delete enforcer.password;
 
     res.status(201).json({
-
       success: true,
-
-      message: 'Enforcer created successfully',
-
-      data: newEnforcer
-
+      data: enforcer,
+      message: 'Enforcer created successfully'
     });
-
-
 
   } catch (error) {
-
     console.error('Create enforcer error:', error);
-
     res.status(500).json({
-
       success: false,
-
-      error: 'Server error'
-
+      error: 'Failed to create enforcer'
     });
-
   }
-
 });
-
-
 
 // @desc    Update enforcer
-
 // @route   PUT /api/admin/enforcers/:id
-
 // @access  Private (Admin only)
-
 router.put('/enforcers/:id', [
-
+  body('username').optional().notEmpty().withMessage('Username cannot be empty'),
+  body('email').optional().isEmail().withMessage('Please provide a valid email'),
   body('full_name').optional().notEmpty().withMessage('Full name cannot be empty'),
-
-  body('badge_number').optional().notEmpty().withMessage('Badge number cannot be empty'),
-
   body('phone_number').optional().isMobilePhone().withMessage('Please provide a valid phone number'),
-
   body('is_active').optional().isBoolean().withMessage('is_active must be a boolean')
-
 ], async (req, res) => {
-
   try {
-
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
-
       return res.status(400).json({
-
         success: false,
-
         error: 'Validation error',
-
         details: errors.array()
-
       });
-
     }
-
-
 
     const { id } = req.params;
+    const updateData = req.body;
+    const firebaseService = getFirebaseService();
 
-    const { full_name, badge_number, phone_number, is_active } = req.body;
-
-
-
-    // Check if enforcer exists
-
-    const [existingEnforcer] = await query(
-
-      'SELECT id FROM users WHERE id = ? AND role = "enforcer"',
-
-      [id]
-
-    );
-
-
-
-    if (!existingEnforcer) {
-
+    // Get current enforcer
+    const currentEnforcer = await firebaseService.findById('users', id);
+    if (!currentEnforcer) {
       return res.status(404).json({
-
         success: false,
-
         error: 'Enforcer not found'
-
       });
-
     }
 
-
-
-    // Check if badge number is already taken by another enforcer
-
-    if (badge_number) {
-
-      const [duplicateBadge] = await query(
-
-        'SELECT id FROM users WHERE badge_number = ? AND id != ?',
-
-        [badge_number, id]
-
-      );
-
-
-
-      if (duplicateBadge) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          error: 'Validation error',
-
-          details: [{ param: 'badge_number', msg: 'Badge number already exists' }]
-
-        });
-
-      }
-
-    }
-
-
-
-    // Build update query
-
-    const updateFields = [];
-
-    const updateValues = [];
-
-
-
-    if (full_name !== undefined) {
-
-      updateFields.push('full_name = ?');
-
-      updateValues.push(full_name);
-
-    }
-
-
-
-    if (badge_number !== undefined) {
-
-      updateFields.push('badge_number = ?');
-
-      updateValues.push(badge_number);
-
-    }
-
-
-
-    if (phone_number !== undefined) {
-
-      updateFields.push('phone_number = ?');
-
-      updateValues.push(phone_number);
-
-    }
-
-
-
-    if (is_active !== undefined) {
-
-      updateFields.push('is_active = ?');
-
-      updateValues.push(is_active);
-
-    }
-
-
-
-    if (updateFields.length === 0) {
-
+    if (currentEnforcer.role !== 'enforcer') {
       return res.status(400).json({
-
         success: false,
-
-        error: 'No fields to update'
-
+        error: 'User is not an enforcer'
       });
-
     }
 
+    // Check for duplicate username if changing
+    if (updateData.username && updateData.username !== currentEnforcer.username) {
+      const existingUser = await firebaseService.findUserByUsername(updateData.username);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: 'Username already exists'
+        });
+      }
+    }
 
-
-    updateValues.push(id);
-
-
+    // Check for duplicate email if changing
+    if (updateData.email && updateData.email !== currentEnforcer.email) {
+      const existingUser = await firebaseService.findUserByEmail(updateData.email);
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          error: 'Email already exists'
+        });
+      }
+    }
 
     // Update enforcer
+    const updatedEnforcer = await firebaseService.updateUser(id, updateData);
 
-    await query(`
-
-      UPDATE users 
-
-      SET ${updateFields.join(', ')}
-
-      WHERE id = ?
-
-    `, updateValues);
-
-
-
-    // Get updated enforcer
-
-    const [updatedEnforcer] = await query(
-
-      'SELECT id, username, email, full_name, badge_number, phone_number, is_active, updated_at FROM users WHERE id = ?',
-
-      [id]
-
-    );
-
-
-
-    // Log audit trail
-
+    // Log audit
     await logAudit(
-
       req.user.id,
-
       'UPDATE_ENFORCER',
-
       'users',
-
-      updatedEnforcer.id,
-
-      null, // We could store old values here if needed
-
-      updatedEnforcer,
-
+      id,
+      currentEnforcer,
+      updateData,
       req
-
     );
 
-
+    // Remove password from response
+    delete updatedEnforcer.password;
 
     res.status(200).json({
-
       success: true,
-
-      message: 'Enforcer updated successfully',
-
-      data: updatedEnforcer
-
+      data: updatedEnforcer,
+      message: 'Enforcer updated successfully'
     });
-
-
 
   } catch (error) {
-
     console.error('Update enforcer error:', error);
-
     res.status(500).json({
-
       success: false,
-
-      error: 'Server error'
-
+      error: 'Failed to update enforcer'
     });
-
   }
-
 });
-
-
 
 // @desc    Delete enforcer
-
 // @route   DELETE /api/admin/enforcers/:id
-
 // @access  Private (Admin only)
-
 router.delete('/enforcers/:id', async (req, res) => {
-
   try {
-
     const { id } = req.params;
+    const firebaseService = getFirebaseService();
 
-
-
-    // Check if enforcer exists
-
-    const [existingEnforcer] = await query(
-
-      'SELECT id FROM users WHERE id = ? AND role = "enforcer"',
-
-      [id]
-
-    );
-
-
-
-    if (!existingEnforcer) {
-
+    // Get enforcer
+    const enforcer = await firebaseService.findById('users', id);
+    if (!enforcer) {
       return res.status(404).json({
-
         success: false,
-
         error: 'Enforcer not found'
-
       });
-
     }
 
-
-
-    // Check if enforcer has any violations
-
-    const [violationCount] = await query(
-
-      'SELECT COUNT(*) as count FROM violations WHERE enforcer_id = ?',
-
-      [id]
-
-    );
-
-
-
-    if (violationCount.count > 0) {
-
+    if (enforcer.role !== 'enforcer') {
       return res.status(400).json({
-
         success: false,
-
-        error: 'Cannot delete enforcer with existing violations'
-
+        error: 'User is not an enforcer'
       });
-
     }
-
-
-
-    // Get enforcer data before deletion for audit log
-
-    const [enforcerData] = await query(
-
-      'SELECT id, username, email, full_name, badge_number FROM users WHERE id = ?',
-
-      [id]
-
-    );
-
-
 
     // Delete enforcer
+    await firebaseService.deleteUser(id);
 
-    await query('DELETE FROM users WHERE id = ?', [id]);
-
-
-
-    // Log audit trail
-
+    // Log audit
     await logAudit(
-
       req.user.id,
-
       'DELETE_ENFORCER',
-
       'users',
-
-      enforcerData.id,
-
-      enforcerData,
-
+      id,
+      enforcer,
       null,
-
       req
-
     );
 
-
-
     res.status(200).json({
-
       success: true,
-
       message: 'Enforcer deleted successfully'
-
     });
 
-
-
   } catch (error) {
-
     console.error('Delete enforcer error:', error);
-
     res.status(500).json({
-
       success: false,
-
-      error: 'Server error'
-
+      error: 'Failed to delete enforcer'
     });
-
   }
-
 });
-
-
-
-// @desc    Get system settings
-
-// @route   GET /api/admin/settings
-
-// @access  Private (Admin only)
-
-router.get('/settings', async (req, res) => {
-
-  try {
-
-    const settings = await query('SELECT * FROM system_settings ORDER BY setting_key');
-
-    
-
-    const settingsObject = {};
-
-    settings.forEach(setting => {
-
-      settingsObject[setting.setting_key] = setting.setting_value;
-
-    });
-
-
-
-    res.status(200).json({
-
-      success: true,
-
-      data: settingsObject
-
-    });
-
-
-
-  } catch (error) {
-
-    console.error('Get settings error:', error);
-
-    res.status(500).json({
-
-      success: false,
-
-      error: 'Server error'
-
-    });
-
-  }
-
-});
-
-
-
-// @desc    Update system settings
-
-// @route   PUT /api/admin/settings
-
-// @access  Private (Admin only)
-
-router.put('/settings', async (req, res) => {
-
-  try {
-
-    const settings = req.body;
-
-
-
-    for (const [key, value] of Object.entries(settings)) {
-
-      await query(
-
-        'UPDATE system_settings SET setting_value = ? WHERE setting_key = ?',
-
-        [value, key]
-
-      );
-
-    }
-
-
-
-    res.status(200).json({
-
-      success: true,
-
-      message: 'Settings updated successfully'
-
-    });
-
-
-
-  } catch (error) {
-
-    console.error('Update settings error:', error);
-
-    res.status(500).json({
-
-      success: false,
-
-      error: 'Server error'
-
-    });
-
-  }
-
-});
-
-
 
 module.exports = router;
-
-

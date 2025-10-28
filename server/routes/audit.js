@@ -1,5 +1,4 @@
 const express = require('express');
-const { query } = require('../config/database');
 const { protect, adminOnly } = require('../middleware/auth');
 const { getAuditLogs, getAuditStats } = require('../utils/auditLogger');
 
