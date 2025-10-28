@@ -354,7 +354,7 @@ const ViolationsReport = ({ filters, setFilters }) => {
                         </tr>
                       </thead>
                       <tbody className="table-body">
-                        {reportData.violations.map((violation, index) => (
+                        {reportData.violations && reportData.violations.length > 0 ? reportData.violations.map((violation, index) => (
                           <tr key={index} className="table-row">
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-mono">{violation.violation_number}</td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
@@ -395,7 +395,13 @@ const ViolationsReport = ({ filters, setFilters }) => {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        )) : (
+                          <tr>
+                            <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                              No violations found for the selected date range.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -652,7 +658,11 @@ const EnforcersReport = ({ filters, setFilters }) => {
                     <div className="p-4 sm:p-6">
                       <div className="mobile-chart-container">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={reportData.enforcers}>
+                          <BarChart data={(reportData.enforcers || []).filter(item => 
+                            item && typeof item === 'object' && 
+                            typeof item.total_violations === 'number' && 
+                            typeof item.collected_fines === 'number'
+                          )}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                             <XAxis 
                               dataKey="full_name" 
@@ -733,7 +743,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
-                          {reportData.enforcers.map((enforcer, index) => (
+                          {reportData.enforcers && reportData.enforcers.length > 0 ? reportData.enforcers.map((enforcer, index) => (
                             <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
                                 <div className="flex items-center">
@@ -779,7 +789,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
                                 {enforcer.month_violations || 0}
                               </td>
                             </tr>
-                          ))}
+                          )) : null}
                         </tbody>
                       </table>
                     </div>
@@ -916,7 +926,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
-                    <span>On duty today</span>
+                    <span>Total in system / {reportData.summary?.enforcers_worked_today || 0} worked today</span>
                   </div>
                 </div>
 
@@ -934,7 +944,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
-                    <span>Per person</span>
+                    <span>Per working enforcer</span>
                   </div>
                 </div>
               </div>
@@ -950,35 +960,43 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     <p className="text-sm text-gray-600 mt-1">Distribution of violation categories</p>
                   </div>
                   <div className="p-4 sm:p-6">
-                    <div className="mobile-chart-container">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={reportData.violations_by_type}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ violation_type, count }) => `${violation_type}: ${count}`}
-                            outerRadius={60}
-                            fill="#8884d8"
-                            dataKey="count"
-                          >
-                            {reportData.violations_by_type.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'white',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                              fontSize: '12px'
-                            }}
-                          />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {(!reportData.violations_by_type || reportData.violations_by_type.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                        <PieChart className="h-16 w-16 mb-4 opacity-20" />
+                        <p className="text-lg font-medium text-gray-500">No Data Available</p>
+                        <p className="text-sm text-gray-400 mt-1">No violations recorded for this date</p>
+                      </div>
+                    ) : (
+                      <div className="mobile-chart-container">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={reportData.violations_by_type}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ violation_type, count }) => `${violation_type}: ${count}`}
+                              outerRadius={60}
+                              fill="#8884d8"
+                              dataKey="count"
+                            >
+                              {reportData.violations_by_type.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{
+                                backgroundColor: 'white',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                fontSize: '12px'
+                              }}
+                            />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -991,40 +1009,48 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     <p className="text-sm text-gray-600 mt-1">Individual enforcer performance</p>
                   </div>
                   <div className="p-4 sm:p-6">
-                    <div className="mobile-chart-container">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={reportData.violations_by_enforcer}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis 
-                            dataKey="full_name" 
-                            tick={{ fontSize: 10, fill: '#64748b' }}
-                            axisLine={{ stroke: '#e2e8f0' }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={60}
-                          />
-                          <YAxis 
-                            tick={{ fontSize: 10, fill: '#64748b' }}
-                            axisLine={{ stroke: '#e2e8f0' }}
-                          />
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'white',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                              fontSize: '12px'
-                            }}
-                          />
-                          <Bar 
-                            dataKey="violations_count" 
-                            fill="#3b82f6" 
-                            name="Violations"
-                            radius={[4, 4, 0, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {(!reportData.violations_by_enforcer || reportData.violations_by_enforcer.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                        <BarChart3 className="h-16 w-16 mb-4 opacity-20" />
+                        <p className="text-lg font-medium text-gray-500">No Data Available</p>
+                        <p className="text-sm text-gray-400 mt-1">No enforcer activity for this date</p>
+                      </div>
+                    ) : (
+                      <div className="mobile-chart-container">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={reportData.violations_by_enforcer}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis 
+                              dataKey="full_name" 
+                              tick={{ fontSize: 10, fill: '#64748b' }}
+                              axisLine={{ stroke: '#e2e8f0' }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={60}
+                            />
+                            <YAxis 
+                              tick={{ fontSize: 10, fill: '#64748b' }}
+                              axisLine={{ stroke: '#e2e8f0' }}
+                            />
+                            <Tooltip 
+                              contentStyle={{
+                                backgroundColor: 'white',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                fontSize: '12px'
+                              }}
+                            />
+                            <Bar 
+                              dataKey="violations_count" 
+                              fill="#3b82f6" 
+                              name="Violations"
+                              radius={[4, 4, 0, 0]}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1047,30 +1073,42 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                         </tr>
                       </thead>
                       <tbody className="table-body">
-                        {reportData.recent_violations.map((violation, index) => (
-                          <tr key={index} className="table-row">
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                              {new Date(violation.created_at).toLocaleTimeString()}
-                            </td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
-                              <div>
-                                <div>{violation.violator_name}</div>
-                                {violation.violator_license && (
-                                  <div className="text-xs text-blue-600 font-mono mt-1">
-                                    License: {violation.violator_license}
-                                  </div>
-                                )}
+                        {(!reportData.recent_violations || reportData.recent_violations.length === 0) ? (
+                          <tr>
+                            <td colSpan="5" className="px-6 py-12 text-center">
+                              <div className="flex flex-col items-center justify-center text-gray-400">
+                                <Table className="h-16 w-16 mb-4 opacity-20" />
+                                <p className="text-lg font-medium text-gray-500">No Data Available</p>
+                                <p className="text-sm text-gray-400 mt-1">No recent violations for this date</p>
                               </div>
                             </td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
-                              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                {violation.violation_type}
-                              </span>
-                            </td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toFixed(2)}</td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">{violation.enforcer_name}</td>
                           </tr>
-                        ))}
+                        ) : (
+                          reportData.recent_violations.map((violation, index) => (
+                            <tr key={index} className="table-row">
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500">
+                                {new Date(violation.created_at).toLocaleTimeString()}
+                              </td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
+                                <div>
+                                  <div>{violation.violator_name}</div>
+                                  {violation.violator_license && (
+                                    <div className="text-xs text-blue-600 font-mono mt-1">
+                                      License: {violation.violator_license}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                  {violation.violation_type}
+                                </span>
+                              </td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toFixed(2)}</td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">{violation.enforcer_name}</td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1256,41 +1294,49 @@ const MonthlyReport = ({ filters, setFilters }) => {
                   <p className="text-sm text-gray-600 mt-1">Daily violation patterns throughout the month</p>
                 </div>
                 <div className="p-4 sm:p-6">
-                  <div className="mobile-chart-container">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={reportData.daily_breakdown}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fontSize: 10, fill: '#64748b' }}
-                          axisLine={{ stroke: '#e2e8f0' }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={60}
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 10, fill: '#64748b' }}
-                          axisLine={{ stroke: '#e2e8f0' }}
-                        />
-                        <Tooltip 
-                          contentStyle={{
-                            backgroundColor: 'white',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                            fontSize: '12px'
-                          }}
-                        />
-                        <Area 
-                          type="monotone" 
-                          dataKey="violations_count" 
-                          stroke="#3b82f6" 
-                          fill="#3b82f6" 
-                          fillOpacity={0.3} 
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                  {(!reportData.daily_breakdown || reportData.daily_breakdown.length === 0) ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                      <TrendingUp className="h-16 w-16 mb-4 opacity-20" />
+                      <p className="text-lg font-medium text-gray-500">No Data Available</p>
+                      <p className="text-sm text-gray-400 mt-1">No violations recorded for this month</p>
+                    </div>
+                  ) : (
+                    <div className="mobile-chart-container">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={reportData.daily_breakdown}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis 
+                            dataKey="date" 
+                            tick={{ fontSize: 10, fill: '#64748b' }}
+                            axisLine={{ stroke: '#e2e8f0' }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={60}
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 10, fill: '#64748b' }}
+                            axisLine={{ stroke: '#e2e8f0' }}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                              fontSize: '12px'
+                            }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="violations_count" 
+                            stroke="#3b82f6" 
+                            fill="#3b82f6" 
+                            fillOpacity={0.3} 
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1305,35 +1351,43 @@ const MonthlyReport = ({ filters, setFilters }) => {
                     <p className="text-sm text-gray-600 mt-1">Payment status distribution</p>
                   </div>
                   <div className="p-4 sm:p-6">
-                    <div className="mobile-chart-container">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={reportData.violations_by_status}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ status, count }) => `${status}: ${count}`}
-                            outerRadius={60}
-                            fill="#8884d8"
-                            dataKey="count"
-                          >
-                            {reportData.violations_by_status.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip 
-                            contentStyle={{
-                              backgroundColor: 'white',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: '8px',
-                              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                              fontSize: '12px'
-                            }}
-                          />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
+                    {(!reportData.violations_by_status || reportData.violations_by_status.length === 0) ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                        <PieChart className="h-16 w-16 mb-4 opacity-20" />
+                        <p className="text-lg font-medium text-gray-500">No Data Available</p>
+                        <p className="text-sm text-gray-400 mt-1">No violations recorded for this month</p>
+                      </div>
+                    ) : (
+                      <div className="mobile-chart-container">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPieChart>
+                            <Pie
+                              data={reportData.violations_by_status}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ status, count }) => `${status}: ${count}`}
+                              outerRadius={60}
+                              fill="#8884d8"
+                              dataKey="count"
+                            >
+                              {reportData.violations_by_status.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{
+                                backgroundColor: 'white',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                                fontSize: '12px'
+                              }}
+                            />
+                          </RechartsPieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1353,12 +1407,12 @@ const MonthlyReport = ({ filters, setFilters }) => {
                       </div>
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-xl border border-green-200 gap-2">
                         <span className="text-xs sm:text-sm font-semibold text-green-700 uppercase tracking-wide">Days with Violations</span>
-                        <span className="text-xl sm:text-2xl font-bold text-green-900">{reportData.daily_breakdown.filter(d => d.violations_count > 0).length}</span>
+                        <span className="text-xl sm:text-2xl font-bold text-green-900">{(reportData.daily_breakdown || []).filter(d => d.violations_count > 0).length}</span>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border border-purple-200 gap-2">
                         <span className="text-xs sm:text-sm font-semibold text-purple-700 uppercase tracking-wide">Peak Day</span>
                         <span className="text-lg sm:text-2xl font-bold text-purple-900">
-                          {reportData.daily_breakdown.reduce((max, day) => 
+                          {(reportData.daily_breakdown || []).reduce((max, day) => 
                             day.violations_count > max.violations_count ? day : max
                           , { violations_count: 0 }).date}
                         </span>

@@ -1,6 +1,6 @@
 # e-Traffic System
 
-A centralized platform for managing traffic violation records captured by handheld IoT devices. Built with React.js, Node.js, and MySQL.
+A centralized platform for managing traffic violation records captured by handheld IoT devices. Built with React.js, Node.js, and Firebase Firestore.
 
 ## 🚀 Features
 
@@ -9,6 +9,7 @@ A centralized platform for managing traffic violation records captured by handhe
 - **Real-time Analytics**: Live dashboard with violation statistics and charts
 - **Enforcer Management**: Create, edit, and manage traffic enforcer accounts
 - **Violation Monitoring**: View and manage all traffic violations
+- **Repeat Offenders Tracking**: Monitor and track violators with multiple offenses
 - **Report Generation**: Generate daily, weekly, and monthly reports
 - **System Settings**: Configure SMS notifications and system parameters
 
@@ -23,6 +24,8 @@ A centralized platform for managing traffic violation records captured by handhe
 - **Search & Filter**: Advanced search and filtering capabilities
 - **Status Tracking**: Track violation status (pending, issued, paid, disputed, cancelled)
 - **Evidence Management**: Support for photo evidence and location data
+- **Repeat Offenders**: Identify and monitor frequent violators with detailed statistics
+- **Mobile Responsive**: Fully optimized for mobile devices and tablets
 
 ### SMS Notification Integration
 - **Automated Notifications**: Send violation notices via SMS gateway API
@@ -35,20 +38,30 @@ A centralized platform for managing traffic violation records captured by handhe
 - **Export Capabilities**: Download reports for external use
 - **Performance Analytics**: Enforcer performance tracking
 
+### Repeat Offenders Management
+- **Violator Tracking**: Identify violators with multiple offenses
+- **Advanced Filtering**: Filter by minimum violations (2+, 3+, 5+, 10+)
+- **Statistical Analysis**: View total repeat offenders, average violations, and maximum violations
+- **Financial Overview**: Track total fines and outstanding balances
+- **Violation History**: View first and last violation details for each offender
+- **Payment Status**: Monitor payment status with visual indicators
+- **Real-time Updates**: Auto-refresh every 30 seconds for live data
+
 ## 🛠️ Technology Stack
 
 ### Frontend
 - **React.js 18**: Modern UI framework
-- **Tailwind CSS**: Utility-first CSS framework
+- **Tailwind CSS**: Utility-first CSS framework with mobile-first responsive design
 - **Chart.js**: Data visualization
 - **React Query**: Server state management
 - **React Hook Form**: Form handling
 - **Lucide React**: Icon library
+- **Recharts**: Advanced charting library for reports
 
 ### Backend
 - **Node.js**: JavaScript runtime
 - **Express.js**: Web framework
-- **MySQL**: Database
+- **Firebase Firestore**: NoSQL database (cloud-based)
 - **JWT**: Authentication
 - **bcryptjs**: Password hashing
 - **Axios**: HTTP client
@@ -63,7 +76,7 @@ A centralized platform for managing traffic violation records captured by handhe
 Before running this application, make sure you have the following installed:
 
 - **Node.js** (v16 or higher)
-- **MySQL** (v8.0 or higher)
+- **Firebase Project**: Create a Firebase project with Firestore enabled
 - **npm** or **yarn**
 
 ## 🚀 Installation & Setup
@@ -85,25 +98,25 @@ npm install
 npm run install-all
 ```
 
-### 3. Database Setup
+### 3. Firebase Setup
 
-1. **Create MySQL Database**
-   ```sql
-   CREATE DATABASE e_traffic_db;
-   ```
+1. **Create Firebase Project**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project
+   - Enable Firestore Database
 
 2. **Configure Environment Variables**
    ```bash
    # Copy the environment template
-   cp server/env.example server/.env
+   cp server/env.firebase.example server/.env
    
-   # Edit the .env file with your database credentials
+   # Edit the .env file with your Firebase credentials
    nano server/.env
    ```
 
 3. **Run Database Setup**
    ```bash
-   npm run setup-db
+   npm run setup-firebase
    ```
 
 ### 4. Configure Environment Variables
@@ -221,6 +234,7 @@ const createViolation = async (violationData) => {
 | POST | `/api/admin/enforcers` | Create new enforcer |
 | PUT | `/api/admin/enforcers/:id` | Update enforcer |
 | DELETE | `/api/admin/enforcers/:id` | Delete enforcer |
+| GET | `/api/admin/repeat-offenders` | Get repeat offenders data |
 | GET | `/api/admin/settings` | Get system settings |
 | PUT | `/api/admin/settings` | Update system settings |
 
