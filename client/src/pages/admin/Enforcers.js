@@ -30,8 +30,8 @@ const Enforcers = () => {
   
   console.log('Query state:', { isLoading, isFetching, error: queryError, hasData: !!enforcersResponse });
 
-  // Extract enforcers array from response (server wraps payload in data)
-  const enforcers = enforcersResponse?.data?.data?.enforcers || [];
+  // Extract enforcers array from response (API returns data as an array directly)
+  const enforcers = Array.isArray(enforcersResponse?.data?.data) ? enforcersResponse?.data?.data : [];
   
   // Debug logging
   console.log('Enforcers API Response:', enforcersResponse);
@@ -76,10 +76,7 @@ const Enforcers = () => {
             ...oldData,
             data: {
               ...oldData.data,
-              data: {
-                ...oldData.data.data,
-                enforcers: [response.data?.data, ...(oldData.data.data.enforcers || [])]
-              }
+              data: [response.data?.data, ...(Array.isArray(oldData.data.data) ? oldData.data.data : [])]
             }
           };
         }

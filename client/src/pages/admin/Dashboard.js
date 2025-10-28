@@ -30,35 +30,42 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 
 const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#22c55e', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
+// Custom Peso Icon Component
+const PesoIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none">
+    <text x="12" y="18" fontSize="28" fontWeight="bold" textAnchor="middle" fill="currentColor" fontFamily="Arial, sans-serif">₱</text>
+  </svg>
+);
+
 const StatCard = ({ title, value, icon: Icon, change, color = 'primary', subtitle }) => {
   const colorMap = {
     primary: {
-      bg: 'bg-red-200',
+      bg: 'bg-white',
       text: 'text-red-600',
-      gradient: 'from-red-50 to-red-100',
-      border: 'border-red-200',
-      iconBg: 'bg-red-100'
+      gradient: 'from-white to-white',
+      border: 'border-gray-300',
+      iconBg: 'bg-red-50'
     },
     success: {
-      bg: 'bg-green-200',
+      bg: 'bg-white',
       text: 'text-green-600',
-      gradient: 'from-green-50 to-green-100',
-      border: 'border-green-200',
-      iconBg: 'bg-green-100'
+      gradient: 'from-white to-white',
+      border: 'border-gray-300',
+      iconBg: 'bg-green-50'
     },
     info: {
-      bg: 'bg-violet-200',
+      bg: 'bg-white',
       text: 'text-violet-600',
-      gradient: 'from-violet-50 to-violet-100',
-      border: 'border-violet-200',
-      iconBg: 'bg-violet-100'
+      gradient: 'from-white to-white',
+      border: 'border-gray-300',
+      iconBg: 'bg-violet-50'
     },
     warning: {
-      bg: 'bg-amber-200',
+      bg: 'bg-white',
       text: 'text-amber-600',
-      gradient: 'from-amber-50 to-amber-100',
-      border: 'border-amber-200',
-      iconBg: 'bg-amber-100'
+      gradient: 'from-white to-white',
+      border: 'border-gray-300',
+      iconBg: 'bg-amber-50'
     }
   };
 
@@ -240,7 +247,7 @@ const AdminDashboard = () => {
         <StatCard
           title="Total Fines Collected"
           value={formatFines(totalFines)}
-          icon={DollarSign}
+          icon={PesoIcon}
           color="warning"
           change={15}
           subtitle="This month"

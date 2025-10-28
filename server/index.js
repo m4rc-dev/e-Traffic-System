@@ -53,19 +53,27 @@ app.get('/health', (req, res) => {
 // Database health check endpoint
 app.get('/health/db', async (req, res) => {
   try {
-    const { query } = require('./config/database');
-    const result = await query('SELECT 1 as test, NOW() as current_timestamp, DATABASE() as database_name');
+    const { getFirebaseService } = require('./config/database');
+    const firebaseService = getFirebaseService();
+    
+    // Test Firebase connection by getting a simple count
+    const userCount = await firebaseService.count('users');
+    
     res.json({
       status: 'OK',
-      message: 'Database connection successful',
-      data: result[0],
+      message: 'Firebase connection successful',
+      data: {
+        database: 'Firebase Firestore',
+        userCount: userCount,
+        timestamp: new Date().toISOString()
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Database health check failed:', error);
+    console.error('Firebase health check failed:', error);
     res.status(500).json({
       status: 'ERROR',
-      message: 'Database connection failed',
+      message: 'Firebase connection failed',
       error: error.message,
       timestamp: new Date().toISOString()
     });
