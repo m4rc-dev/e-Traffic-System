@@ -53,10 +53,14 @@ router.get('/', async (req, res) => {
 
     const violationTypeFilterRaw = violation_type ? String(violation_type).trim() : '';
     const violatorNameFilterRaw = violator_name ? String(violator_name).trim() : '';
+    const searchFilterRaw = search ? String(search).trim() : '';
+    
     const violationTypeFilter = violationTypeFilterRaw.toLowerCase();
     const violatorNameFilter = violatorNameFilterRaw.toLowerCase();
+    const searchFilter = searchFilterRaw.toLowerCase();
+    
     const needsClientFiltering = Boolean(
-      search ||
+      searchFilterRaw ||
       violationTypeFilterRaw ||
       violatorNameFilterRaw
     );
@@ -67,8 +71,14 @@ router.get('/', async (req, res) => {
     };
 
     if (!needsClientFiltering) {
+      // Normal pagination when no client-side filtering needed
       firebaseOptions.limit = validLimit;
       firebaseOptions.offset = offset;
+    } else {
+      // When client-side filtering is needed, fetch more records to ensure we can filter properly
+      // Set a reasonable maximum to prevent performance issues (5000 should be enough for most cases)
+      firebaseOptions.limit = 5000;
+      firebaseOptions.offset = 0;
     }
 
     let violations = await firebaseService.getViolations(conditions, firebaseOptions);
@@ -103,30 +113,40 @@ router.get('/', async (req, res) => {
     
     violations = violationsWithEnforcer;
     
-    // Apply client-side filtering for search
+    // Apply client-side filtering for search, violator name, and violation type
     let filteredViolations = violations;
     
-    if (violatorNameFilter) {
-      filteredViolations = filteredViolations.filter(violation =>
-        violation.violator_name?.toLowerCase().includes(violatorNameFilter)
-      );
+    // Apply violator name filter (specific filter)
+    if (violatorNameFilterRaw) {
+      filteredViolations = filteredViolations.filter(violation => {
+        const violatorName = violation.violator_name || '';
+        return violatorName.toLowerCase().includes(violatorNameFilter);
+      });
     }
     
-    if (violationTypeFilter) {
-      filteredViolations = filteredViolations.filter(violation =>
-        violation.violation_type?.toLowerCase().includes(violationTypeFilter)
-      );
+    // Apply violation type filter (specific filter)
+    if (violationTypeFilterRaw) {
+      filteredViolations = filteredViolations.filter(violation => {
+        const violationType = violation.violation_type || '';
+        return violationType.toLowerCase().includes(violationTypeFilter);
+      });
     }
 
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filteredViolations = filteredViolations.filter(violation => 
-        violation.violator_name?.toLowerCase().includes(searchLower) ||
-        violation.violator_license?.toLowerCase().includes(searchLower) ||
-        violation.vehicle_plate?.toLowerCase().includes(searchLower) ||
-        violation.violation_type?.toLowerCase().includes(searchLower) ||
-        violation.location?.toLowerCase().includes(searchLower)
-      );
+    // Apply general search filter (works in addition to specific filters)
+    if (searchFilterRaw) {
+      filteredViolations = filteredViolations.filter(violation => {
+        const violatorName = (violation.violator_name || '').toLowerCase();
+        const violatorLicense = (violation.violator_license || '').toLowerCase();
+        const vehiclePlate = (violation.vehicle_plate || '').toLowerCase();
+        const violationType = (violation.violation_type || '').toLowerCase();
+        const location = (violation.location || '').toLowerCase();
+        
+        return violatorName.includes(searchFilter) ||
+               violatorLicense.includes(searchFilter) ||
+               vehiclePlate.includes(searchFilter) ||
+               violationType.includes(searchFilter) ||
+               location.includes(searchFilter);
+      });
     }
 
     let totalCount;
