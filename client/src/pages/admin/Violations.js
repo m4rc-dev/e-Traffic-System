@@ -6,6 +6,14 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import toast from 'react-hot-toast';
 
+const VIOLATION_TYPES = [
+  'Speeding',
+  'Red Light',
+  'Parking',
+  'Reckless Driving',
+  'DUI'
+];
+
 const Violations = () => {
   const [filters, setFilters] = useState({
     page: 1,
@@ -17,6 +25,7 @@ const Violations = () => {
     end_date: '',
     violation_type: '',
     repeat_offender: '',
+    violator_name: '',
   });
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingViolation, setEditingViolation] = useState(null);
@@ -148,6 +157,8 @@ const Violations = () => {
         start_date: filters.start_date || '',
         end_date: filters.end_date || '',
         violation_type: filters.violation_type || '',
+        repeat_offender: filters.repeat_offender || '',
+        violator_name: filters.violator_name || '',
         format: 'csv'
       };
 
@@ -454,6 +465,23 @@ const Violations = () => {
               </div>
             </div>
 
+            {/* Violator name filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Violator Name
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
+                  placeholder="Search by violator name..."
+                  value={filters.violator_name}
+                  onChange={(e) => handleFilterChange('violator_name', e.target.value)}
+                />
+              </div>
+            </div>
+
             {/* Status filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -478,18 +506,19 @@ const Violations = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Violation Type
               </label>
-              <select
+              <input
+                type="text"
+                list="violation-types"
                 className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
+                placeholder="Search violation types..."
                 value={filters.violation_type}
                 onChange={(e) => handleFilterChange('violation_type', e.target.value)}
-              >
-                <option value="">All Types</option>
-                <option value="Speeding">Speeding</option>
-                <option value="Red Light">Red Light</option>
-                <option value="Parking">Parking</option>
-                <option value="Reckless Driving">Reckless Driving</option>
-                <option value="DUI">DUI</option>
-              </select>
+              />
+              <datalist id="violation-types">
+                {VIOLATION_TYPES.map((type) => (
+                  <option key={type} value={type} />
+                ))}
+              </datalist>
             </div>
 
             {/* Repeat offender filter */}
@@ -580,6 +609,8 @@ const Violations = () => {
                   start_date: '',
                   end_date: '',
                   violation_type: '',
+                  repeat_offender: '',
+                  violator_name: '',
                 })}
                 className="mobile-btn-secondary w-full hover:bg-gray-100 transition-colors duration-200"
               >

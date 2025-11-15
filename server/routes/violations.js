@@ -21,7 +21,10 @@ router.get('/', async (req, res) => {
       limit = 10, 
       search = '', 
       status = '', 
-      enforcer_id = ''
+        enforcer_id = '',
+      violation_type = '',
+      violator_name = '',
+      repeat_offender = ''
     } = req.query;
     
     const firebaseService = getFirebaseService();
@@ -41,13 +44,34 @@ router.get('/', async (req, res) => {
     if (enforcer_id) {
       conditions.enforcer_id = enforcer_id;
     }
+
+    if (repeat_offender === 'true') {
+      conditions.is_repeat_offender = true;
+    } else if (repeat_offender === 'false') {
+      conditions.is_repeat_offender = false;
+    }
+
+    const violationTypeFilterRaw = violation_type ? String(violation_type).trim() : '';
+    const violatorNameFilterRaw = violator_name ? String(violator_name).trim() : '';
+    const violationTypeFilter = violationTypeFilterRaw.toLowerCase();
+    const violatorNameFilter = violatorNameFilterRaw.toLowerCase();
+    const needsClientFiltering = Boolean(
+      search ||
+      violationTypeFilterRaw ||
+      violatorNameFilterRaw
+    );
     
     // Get violations (avoid composite index by fetching all and sorting in memory if needed)
-    let violations = await firebaseService.getViolations(conditions, {
-      limit: validLimit,
-      offset: offset,
+    const firebaseOptions = {
       sortInMemory: Object.keys(conditions).length > 0
-    });
+    };
+
+    if (!needsClientFiltering) {
+      firebaseOptions.limit = validLimit;
+      firebaseOptions.offset = offset;
+    }
+
+    let violations = await firebaseService.getViolations(conditions, firebaseOptions);
     
     // Get enforcer details for each violation
     const violationsWithEnforcer = await Promise.all(
@@ -82,6 +106,18 @@ router.get('/', async (req, res) => {
     // Apply client-side filtering for search
     let filteredViolations = violations;
     
+    if (violatorNameFilter) {
+      filteredViolations = filteredViolations.filter(violation =>
+        violation.violator_name?.toLowerCase().includes(violatorNameFilter)
+      );
+    }
+    
+    if (violationTypeFilter) {
+      filteredViolations = filteredViolations.filter(violation =>
+        violation.violation_type?.toLowerCase().includes(violationTypeFilter)
+      );
+    }
+
     if (search) {
       const searchLower = search.toLowerCase();
       filteredViolations = filteredViolations.filter(violation => 
@@ -92,17 +128,39 @@ router.get('/', async (req, res) => {
         violation.location?.toLowerCase().includes(searchLower)
       );
     }
-    
-    // Get total count
-    const totalCount = await firebaseService.count('violations', conditions);
+
+    let totalCount;
+    let paginatedViolations = filteredViolations;
+    let totalPages;
+    let currentPage = validPage;
+
+    if (needsClientFiltering) {
+      totalCount = filteredViolations.length;
+      totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / validLimit);
+      if (totalPages === 0) {
+        currentPage = 1;
+      } else if (validPage > totalPages) {
+        currentPage = totalPages;
+      }
+      const startIndex = (currentPage - 1) * validLimit;
+      paginatedViolations = filteredViolations.slice(startIndex, startIndex + validLimit);
+    } else {
+      totalCount = await firebaseService.count('violations', conditions);
+      totalPages = Math.ceil(totalCount / validLimit);
+      if (totalPages === 0) {
+        currentPage = 1;
+      } else if (validPage > totalPages) {
+        currentPage = totalPages;
+      }
+    }
     
     res.status(200).json({
       success: true,
       data: {
-        violations: filteredViolations,
+        violations: paginatedViolations,
         pagination: {
-          current: validPage,
-          total: Math.ceil(totalCount / validLimit),
+          current: currentPage,
+          total: totalPages,
           totalRecords: totalCount
         }
       }
