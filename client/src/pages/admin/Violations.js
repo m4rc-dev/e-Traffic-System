@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { violationsAPI, adminAPI } from '../../services/api';
 import { Search, Filter, Download, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
@@ -27,6 +27,11 @@ const Violations = () => {
     repeat_offender: '',
     violator_name: '',
   });
+  
+  // Debounced filters for search fields (violator_name, violation_type, search)
+  const [debouncedFilters, setDebouncedFilters] = useState(filters);
+  const debounceTimeoutRef = useRef(null);
+  
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingViolation, setEditingViolation] = useState(null);
   const [formErrors, setFormErrors] = useState({});
@@ -34,9 +39,26 @@ const Violations = () => {
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, violation: null });
   const queryClient = useQueryClient();
 
+  // Debounce search fields (violator_name, violation_type, search) with 300ms delay
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedFilters(filters);
+    }, 300);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [filters]);
+
   const { data: violationsResponse, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['violations', filters],
-    queryFn: () => violationsAPI.getViolations(filters),
+    queryKey: ['violations', debouncedFilters],
+    queryFn: () => violationsAPI.getViolations(debouncedFilters),
     placeholderData: (previousData) => previousData,
     retry: 2,
     refetchOnWindowFocus: false,
@@ -75,7 +97,7 @@ const Violations = () => {
   const updateViolationMutation = useMutation({
     mutationFn: ({ id, data }) => violationsAPI.updateViolation(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['violations', filters]);
+      queryClient.invalidateQueries(['violations']);
       queryClient.invalidateQueries(['adminDashboard']);
       queryClient.invalidateQueries(['violationStats']);
       setShowEditModal(false);
@@ -101,7 +123,7 @@ const Violations = () => {
   const deleteViolationMutation = useMutation({
     mutationFn: (id) => violationsAPI.deleteViolation(id),
     onSuccess: () => {
-      queryClient.invalidateQueries(['violations', filters]);
+      queryClient.invalidateQueries(['violations']);
       queryClient.invalidateQueries(['adminDashboard']);
       queryClient.invalidateQueries(['violationStats']);
       toast.success('Violation deleted successfully');
