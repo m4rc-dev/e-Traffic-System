@@ -173,8 +173,11 @@ router.get('/repeat-offenders', async (req, res) => {
     const { min_violations = 2 } = req.query;
     const firebaseService = getFirebaseService();
     
+    console.log('Repeat offenders request received with params:', req.query);
+    
     // Get all violations
     const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
+    console.log(`Found ${allViolations.length} total violations`);
     
     // Group by violator (using license plate as identifier)
     const violatorGroups = {};
@@ -186,12 +189,33 @@ router.get('/repeat-offenders', async (req, res) => {
           violatorGroups[key] = [];
         }
         violatorGroups[key].push(violation);
+      } else {
+        console.log('Violation without identifier fields:', {
+          id: violation.id,
+          violator_name: violation.violator_name,
+          violator_license: violation.violator_license,
+          vehicle_plate: violation.vehicle_plate
+        });
       }
+    });
+    
+    console.log(`Grouped into ${Object.keys(violatorGroups).length} violator groups`);
+    
+    // Show some sample groups for debugging
+    const sampleGroups = Object.entries(violatorGroups).slice(0, 5);
+    sampleGroups.forEach(([key, violations]) => {
+      console.log(`Group ${key}: ${violations.length} violations`);
     });
     
     // Find repeat offenders (based on min_violations parameter, default 2)
     const repeatOffenders = Object.entries(violatorGroups)
-      .filter(([key, violations]) => violations.length >= parseInt(min_violations))
+      .filter(([key, violations]) => {
+        const isRepeat = violations.length >= parseInt(min_violations);
+        if (isRepeat) {
+          console.log(`Repeat offender found: ${key} with ${violations.length} violations`);
+        }
+        return isRepeat;
+      })
       .map(([key, violations]) => {
         // Sort violations by date (newest first)
         violations.sort((a, b) => {
@@ -231,6 +255,14 @@ router.get('/repeat-offenders', async (req, res) => {
       })
       .sort((a, b) => b.total_violations - a.total_violations);
     
+    // Apply limit if specified
+    const { limit } = req.query;
+    const limitedRepeatOffenders = limit 
+      ? repeatOffenders.slice(0, parseInt(limit)) 
+      : repeatOffenders;
+    
+    console.log(`Found ${repeatOffenders.length} repeat offenders, returning ${limitedRepeatOffenders.length} (limit: ${limit})`);
+    
     // Calculate statistics
     const totalRepeatOffenders = repeatOffenders.length;
     const avgViolationsPerOffender = totalRepeatOffenders > 0 
@@ -246,13 +278,20 @@ router.get('/repeat-offenders', async (req, res) => {
       max_violations: maxViolations
     };
     
-    res.status(200).json({
+    const response = {
       success: true,
       data: {
-        repeatOffenders,
+        repeatOffenders: limitedRepeatOffenders,
         statistics
       }
+    };
+    
+    console.log('Sending repeat offenders response:', {
+      repeatOffendersCount: limitedRepeatOffenders.length,
+      statistics
     });
+    
+    res.status(200).json(response);
     
   } catch (error) {
     console.error('Repeat offenders error:', error);

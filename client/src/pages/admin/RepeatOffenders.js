@@ -10,28 +10,61 @@ const RepeatOffenders = () => {
     limit: 20
   });
 
-  const { data: repeatOffendersResponse, isLoading, error } = useQuery({
-    queryKey: ['repeatOffenders', filters],
+  const { data: repeatOffendersResponse, isLoading, error, refetch } = useQuery({
+    queryKey: ['repeatOffenders', filters, Date.now()],
     queryFn: () => adminAPI.getRepeatOffenders(filters),
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Extract data correctly from the new API response structure
-  const repeatOffenders = repeatOffendersResponse?.data?.data?.repeatOffenders || [];
-  const statistics = repeatOffendersResponse?.data?.data?.statistics || {};
+  // Extract data correctly from the API response structure
+  const repeatOffenders = repeatOffendersResponse?.data?.repeatOffenders || [];
+  const statistics = repeatOffendersResponse?.data?.statistics || {};
+  
+  // Additional debugging
+  const isLoadingData = isLoading || !repeatOffendersResponse;
+  const hasData = repeatOffenders && repeatOffenders.length > 0;
+  const hasError = error || (repeatOffendersResponse && !repeatOffendersResponse.success);
 
-  if (isLoading) {
+  // Debug information
+  console.log('RepeatOffenders Component State:', {
+    isLoading,
+    isLoadingData,
+    hasData,
+    hasError,
+    repeatOffendersResponse,
+    repeatOffenders,
+    statistics,
+    error
+  });
+
+  if (isLoadingData) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600">Loading repeat offenders data...</p>
+        </div>
       </div>
     );
   }
 
-  if (error) {
+  if (hasError) {
+    console.error('RepeatOffenders Error:', error);
     return (
       <div className="text-center py-12">
         <p className="text-red-600">Failed to load repeat offenders data</p>
+        {error && <p className="text-red-500 text-sm mt-2">Error: {error.message}</p>}
+        {repeatOffendersResponse && !repeatOffendersResponse.success && (
+          <p className="text-red-500 text-sm mt-2">
+            Server Error: {repeatOffendersResponse.data?.error || 'Unknown server error'}
+          </p>
+        )}
+        <button 
+          onClick={() => refetch()}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -56,6 +89,12 @@ const RepeatOffenders = () => {
           <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
             <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Last updated: {new Date().toLocaleTimeString()}</span>
+            <button 
+              onClick={() => refetch()}
+              className="ml-4 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors"
+            >
+              Refresh
+            </button>
           </div>
         </div>
       </div>
@@ -114,6 +153,9 @@ const RepeatOffenders = () => {
               <p className="text-xs sm:text-sm font-medium text-gray-600">Total Fines</p>
               <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mt-1 break-words">
                 ₱{repeatOffenders.reduce((sum, offender) => sum + parseFloat(offender.total_fines || 0), 0).toLocaleString()}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                From {repeatOffenders.length} offenders
               </p>
             </div>
           </div>
@@ -190,7 +232,20 @@ const RepeatOffenders = () => {
               <Users className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" />
             </div>
             <h3 className="responsive-text-lg font-medium text-gray-900 mb-2">No repeat offenders found</h3>
-            <p className="responsive-text-sm text-gray-500">No violators found with {filters.min_violations}+ violations</p>
+            <p className="responsive-text-sm text-gray-500">
+              No violators found with {filters.min_violations}+ violations
+            </p>
+            <div className="mt-4 text-xs text-gray-400">
+              <p>Debug Info:</p>
+              <p>Total violations in system: {statistics.total_violations || 0}</p>
+              <p>Total repeat offenders: {statistics.total_repeat_offenders || 0}</p>
+            </div>
+            <button 
+              onClick={() => refetch()}
+              className="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm"
+            >
+              Refresh Data
+            </button>
           </div>
         ) : (
           <div className="overflow-x-auto">
