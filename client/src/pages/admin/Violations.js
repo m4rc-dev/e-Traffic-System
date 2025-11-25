@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { violationsAPI, adminAPI } from '../../services/api';
-import { Search, Filter, Download, Eye, Edit, Trash2, RefreshCw } from 'lucide-react';
+import { Search, Filter, Download, Eye, Edit, Trash2, RefreshCw, Printer } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import toast from 'react-hot-toast';
@@ -93,16 +93,52 @@ const Violations = () => {
   const data = violationsResponse?.data?.data;
   const { violations, pagination } = data || {};
 
+  // State for tracking the selected status in the edit form
+  const [selectedStatus, setSelectedStatus] = useState('');
+  
+  // Send SMS mutation
+  const sendSMSMutation = useMutation({
+    mutationFn: ({ id, data }) => violationsAPI.sendSMS(id, data),
+    onSuccess: (data) => {
+      toast.success(data.data?.message || 'SMS sent successfully');
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Failed to send SMS');
+    }
+  });
+
   // Update violation mutation
   const updateViolationMutation = useMutation({
     mutationFn: ({ id, data }) => violationsAPI.updateViolation(id, data),
-    onSuccess: () => {
+    onSuccess: (response, variables) => {
       queryClient.invalidateQueries(['violations']);
       queryClient.invalidateQueries(['adminDashboard']);
       queryClient.invalidateQueries(['violationStats']);
       setShowEditModal(false);
       setEditingViolation(null);
       setFormErrors({});
+      setSelectedStatus('');
+      
+      // Check if we should send SMS (status was updated to 'paid' and sendSMS was checked)
+      if (variables.data.status === 'paid' && variables.data.sendSMS) {
+        const message = `Good day, Ma'am/Sir.\n\n` +
+          `This is an official confirmation from e-Traffic.\n\n` +
+          `We have received your payment for the following violation:\n\n` +
+          `Violator Name: ${variables.data.violatorName}\n` +
+          `Plate Number: ${variables.data.vehiclePlate}\n` +
+          `Violation Type: ${variables.data.violationType}\n` +
+          `Fine Amount Paid: ₱${variables.data.fineAmount}\n` +
+          `Date of Payment: ${new Date().toLocaleDateString()}\n` +
+          `Enforcer Name: ${variables.data.enforcerName}\n\n` +
+          `Your record has been updated, and the case is now marked as PAID in the Cebu City Transportation Office (CCTO).\n\n` +
+          `Thank you for complying with the traffic regulations and for helping maintain safety and order on our roads.\n` +
+          `Have a safe day ahead.`;
+        sendSMSMutation.mutate({ 
+          id: variables.id, 
+          data: { message } 
+        });
+      }
+      
       toast.success('Violation updated successfully');
     },
     onError: (error) => {
@@ -171,53 +207,68 @@ const Violations = () => {
       setIsExporting(true);
       toast.loading('Preparing export...', { id: 'export' });
       
-      // Prepare export parameters with current filters (exclude pagination)
-      const exportFilters = {
-        search: filters.search || '',
-        status: filters.status || '',
-        enforcer_id: filters.enforcer_id || '',
-        start_date: filters.start_date || '',
-        end_date: filters.end_date || '',
-        violation_type: filters.violation_type || '',
-        repeat_offender: filters.repeat_offender || '',
-        violator_name: filters.violator_name || '',
-        format: 'csv'
-      };
-
-      console.log('Export filters:', exportFilters);
-      const response = await violationsAPI.exportViolations(exportFilters);
-      console.log('Export response status:', response.status);
+      // Fetch violations data for PDF generation
+      const response = await violationsAPI.getViolations({
+        ...filters,
+        limit: 10000 // Get all violations for export
+      });
       
-      // Check for successful response
-      if (response.status !== 200) {
-        const errorText = await response.text();
-        console.error('Export error response:', errorText);
-        throw new Error(`Export failed: ${response.status} - ${errorText}`);
+      if (!response.data?.data?.violations) {
+        throw new Error('Failed to fetch violations data');
       }
       
-      // Get the CSV content as blob
-      const blob = await response.blob();
-      console.log('Export blob size:', blob.size);
+      const violations = response.data.data.violations;
       
-      // Create download link
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
+      // Generate PDF using jsPDF
+      const { jsPDF } = window.jspdf || require('jspdf');
+      window.jspdfAutoTable || require('jspdf-autotable');
       
-      // Generate filename with current date and filters
+      const doc = new jsPDF('landscape');
+      doc.setFont('helvetica');
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text('Traffic Violations Report', 14, 20);
+      doc.setFontSize(12);
+      
+      // Add filter information
+      let filterText = `Generated on: ${new Date().toLocaleDateString()}`;
+      if (filters.status) filterText += ` | Status: ${filters.status}`;
+      if (filters.start_date && filters.end_date) {
+        filterText += ` | Period: ${filters.start_date} to ${filters.end_date}`;
+      }
+      doc.text(filterText, 14, 30);
+      
+      // Add violations table
+      doc.autoTable({
+        startY: 40,
+        head: [['Violation #', 'Violator', 'Vehicle', 'Type', 'Fine', 'Status', 'Enforcer', 'Location', 'Date']],
+        body: violations.map(violation => [
+          violation.violation_number,
+          violation.violator_name,
+          violation.vehicle_plate,
+          violation.violation_type,
+          `₱${parseFloat(violation.fine_amount).toFixed(2)}`,
+          violation.status,
+          `${violation.enforcer_name}\n${violation.enforcer_badge}`,
+          violation.location,
+          new Date(violation.created_at).toLocaleDateString()
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [22, 160, 133] },
+        margin: { top: 10 }
+      });
+      
+      // Save the PDF
       const today = new Date().toISOString().split('T')[0];
       let filename = `violations_export_${today}`;
       if (filters.status) filename += `_${filters.status}`;
       if (filters.start_date && filters.end_date) {
         filename += `_${filters.start_date}_to_${filters.end_date}`;
       }
-      filename += '.csv';
+      filename += '.pdf';
       
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      doc.save(filename);
       
       toast.success('Export completed successfully!', { id: 'export' });
     } catch (error) {
@@ -247,15 +298,270 @@ const Violations = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const status = formData.get('status');
+    const notes = formData.get('notes');
+    const sendSMS = formData.get('sendSMS') === 'on';
+    const sendPenaltyReminder = formData.get('sendPenaltyReminder') === 'on';
+    
     const violationData = {
-      status: formData.get('status'),
-      notes: formData.get('notes')
+      status,
+      notes
     };
+    
+    // Add SMS flag and violation details if status is 'paid'
+    if (status === 'paid') {
+      violationData.sendSMS = sendSMS;
+      violationData.violationNumber = editingViolation.violation_number;
+      violationData.violatorName = editingViolation.violator_name;
+      violationData.vehiclePlate = editingViolation.vehicle_plate;
+      violationData.violationType = editingViolation.violation_type;
+      violationData.fineAmount = editingViolation.fine_amount;
+      violationData.enforcerName = editingViolation.enforcer_name;
+      violationData.badgeNumber = editingViolation.enforcer_badge;
+    }
+    
+    // Add penalty reminder flag if status is 'issued' and checkbox is checked
+    if (status === 'issued' && sendPenaltyReminder) {
+      violationData.sendPenaltyReminder = sendPenaltyReminder;
+      violationData.violationNumber = editingViolation.violation_number;
+      violationData.violatorName = editingViolation.violator_name;
+      violationData.vehiclePlate = editingViolation.vehicle_plate;
+      violationData.violationType = editingViolation.violation_type;
+      violationData.fineAmount = editingViolation.fine_amount;
+      violationData.location = editingViolation.location;
+      violationData.dueDate = editingViolation.due_date;
+      violationData.violatorPhone = editingViolation.violator_phone;
+    }
 
     updateViolationMutation.mutate({ 
       id: editingViolation.id, 
       data: violationData 
     });
+  };
+
+  const handlePrintReceipt = (violation) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
+    
+    // Generate the receipt HTML
+    const receiptHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Violation Receipt - ${violation.violation_number}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+          }
+          .header h1 {
+            margin: 0;
+            color: #2563eb;
+          }
+          .header p {
+            margin: 5px 0;
+            color: #666;
+          }
+          .section {
+            margin-bottom: 20px;
+          }
+          .section-title {
+            font-weight: bold;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            color: #2563eb;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+          .info-item {
+            margin-bottom: 8px;
+          }
+          .info-label {
+            font-weight: bold;
+            display: inline-block;
+            width: 150px;
+          }
+          .signature-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+          }
+          .signature-line {
+            flex: 1;
+            border-top: 1px solid #333;
+            margin-top: 60px;
+            padding-top: 10px;
+            text-align: center;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 10px;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+          }
+          @media print {
+            body {
+              padding: 10px;
+            }
+            .no-print {
+              display: none;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>e-Traffic Violation System</h1>
+          <p>Official Violation Receipt</p>
+          <p>Generated: ${new Date().toLocaleDateString()}</p>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Violation Details</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Violation #:</span>
+              <span>${violation.violation_number}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status:</span>
+              <span>${violation.status}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Date & Time:</span>
+              <span>${new Date(violation.created_at).toLocaleString()}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Enforcer:</span>
+              <span>${violation.enforcer_name} (${violation.enforcer_badge})</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Location:</span>
+              <span>${violation.location}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Violation Type:</span>
+              <span>${violation.violation_type}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Violator Information</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Name:</span>
+              <span>${violation.violator_name}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">License #:</span>
+              <span>${violation.violator_license || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Phone:</span>
+              <span>${violation.violator_phone || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Address:</span>
+              <span>${violation.violator_address || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Vehicle Information</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Plate #:</span>
+              <span>${violation.vehicle_plate}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Model:</span>
+              <span>${violation.vehicle_model || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Color:</span>
+              <span>${violation.vehicle_color || 'N/A'}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Financial Details</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Fine Amount:</span>
+              <span>₱${violation.fine_amount?.toLocaleString()}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Repeat Offender:</span>
+              <span>${violation.is_repeat_offender ? 'Yes' : 'No'}</span>
+            </div>
+            ${violation.is_repeat_offender ? `
+            <div class="info-item">
+              <span class="info-label">Previous Violations:</span>
+              <span>${violation.previous_violations_count}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Description</div>
+          <p>${violation.violation_description || 'No description provided'}</p>
+        </div>
+        
+        <div class="signature-section">
+          <div class="signature-line">
+            Enforcer Signature
+          </div>
+          <div class="signature-line">
+            Violator Signature
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p>This is an official receipt for traffic violation. Please keep this document for your records.</p>
+          <p>System Generated Receipt - ${new Date().toLocaleString()}</p>
+        </div>
+        
+        <div class="no-print" style="text-align: center; margin-top: 20px;">
+          <button onclick="window.print()" style="padding: 10px 20px; background-color: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            Print Receipt
+          </button>
+          <button onclick="window.close()" style="padding: 10px 20px; background-color: #6b7280; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">
+            Close
+          </button>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Write the HTML to the new window
+    printWindow.document.write(receiptHTML);
+    printWindow.document.close();
+    
+    // Focus the window and trigger print when it loads
+    printWindow.onload = function() {
+      printWindow.focus();
+      // Uncomment the line below if you want to automatically trigger print
+      // printWindow.print();
+    };
   };
 
   if (isLoading) {
@@ -362,7 +668,7 @@ const Violations = () => {
               <p className="text-3xl font-bold text-blue-900">{dashboardStats?.data?.data?.totalViolations || 0}</p>
                 <div className="mt-2 flex items-center text-sm text-blue-600">
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                   <span>Total recorded</span>
                 </div>
@@ -435,7 +741,7 @@ const Violations = () => {
               </svg>
             ) : (
               <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 10-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
             )}
           </div>
@@ -694,6 +1000,9 @@ const Violations = () => {
                   Enforcer
                 </th>
                 <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Location
+                </th>
+                <th className="px-2 sm:px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date & Time
                 </th>
                 <th className="px-2 sm:px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -701,138 +1010,148 @@ const Violations = () => {
                 </th>
               </tr>
             </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                {violations?.map((violation) => (
-                  <tr key={violation.id} className="hover:bg-gray-50">
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {violation.violation_number}
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{violation.violator_name}</div>
-                        <div className="text-sm text-gray-500">
-                          {violation.violator_phone}
-                        </div>
-                        {violation.violator_license && (
-                          <div className="text-xs text-blue-600 font-mono mt-1">
-                            License: {violation.violator_license}
-                          </div>
-                        )}
-                        {violation.is_repeat_offender && (
-                          <div className="flex items-center mt-1">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              🔁 Repeat ({violation.previous_violations_count + 1})
-                            </span>
-                          </div>
-                        )}
+            <tbody className="bg-white divide-y divide-gray-200">
+              {violations?.map((violation) => (
+                <tr key={violation.id} className="hover:bg-gray-50">
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {violation.violation_number}
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{violation.violator_name}</div>
+                      <div className="text-sm text-gray-500">
+                        {violation.violator_phone}
                       </div>
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{violation.vehicle_plate}</div>
-                        <div className="text-sm text-gray-500">
-                          {violation.vehicle_model} {violation.vehicle_color}
+                      {violation.violator_license && (
+                        <div className="text-xs text-blue-600 font-mono mt-1">
+                          License: {violation.violator_license}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-900">{violation.violation_type}</td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ₱{violation.fine_amount?.toLocaleString()}
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
-                      <StatusBadge status={violation.status} />
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{violation.enforcer_name}</div>
-                        <div className="text-sm text-gray-500">
-                          {violation.enforcer_badge}
+                      )}
+                      {violation.is_repeat_offender && (
+                        <div className="flex items-center mt-1">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            🔁 Repeat ({violation.previous_violations_count + 1})
+                          </span>
                         </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{violation.vehicle_plate}</div>
+                      <div className="text-sm text-gray-500">
+                        {violation.vehicle_model} {violation.vehicle_color}
                       </div>
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {new Date(violation.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(violation.created_at).toLocaleTimeString()}
-                        </div>
+                    </div>
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-900">{violation.violation_type}</td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    ₱{violation.fine_amount?.toLocaleString()}
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
+                    <StatusBadge status={violation.status} />
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{violation.enforcer_name}</div>
+                      <div className="text-sm text-gray-500">
+                        {violation.enforcer_badge}
                       </div>
-                    </td>
-                    <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button className="text-primary-600 hover:text-primary-900 p-1 rounded-md hover:bg-primary-50 transition-colors">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleEdit(violation)}
-                          className="text-warning-600 hover:text-warning-900 p-1 rounded-md hover:bg-warning-50 transition-colors"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(violation)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                    </div>
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {violation.location}
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {new Date(violation.created_at).toLocaleDateString()}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div className="text-xs text-gray-500">
+                        {new Date(violation.created_at).toLocaleTimeString()}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
+                      <button className="text-primary-600 hover:text-primary-900 p-1 rounded-md hover:bg-primary-50 transition-colors">
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleEdit(violation)}
+                        className="text-warning-600 hover:text-warning-900 p-1 rounded-md hover:bg-warning-50 transition-colors"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handlePrintReceipt(violation)}
+                        className="text-blue-600 hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors"
+                        title="Print Receipt"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(violation)}
+                        className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-            {(!violations || violations.length === 0) && (
-              <div className="text-center py-16 bg-gradient-to-b from-gray-50 to-gray-100">
-                <div className="mb-6">
-                  <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-medium text-gray-900 mb-3">No violations found</h3>
-                <p className="text-gray-500 max-w-md mx-auto leading-relaxed">
-                  {filters.status === 'pending' 
-                    ? 'No pending violations at the moment. All violations have been processed.'
-                    : 'Violations will appear here once enforcers record them using their IoT devices.'
-                  }
-                </p>
+          {(!violations || violations.length === 0) && (
+            <div className="text-center py-16 bg-gradient-to-b from-gray-50 to-gray-100">
+              <div className="mb-6">
+                <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
               </div>
-            )}
-          </div>
-
-          {/* Pagination */}
-          {pagination && pagination.total > 1 && (
-            <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  Showing <span className="font-medium text-gray-900">{((pagination.current - 1) * filters.limit) + 1}</span> to{' '}
-                  <span className="font-medium text-gray-900">{Math.min(pagination.current * filters.limit, pagination.totalRecords)}</span> of{' '}
-                  <span className="font-medium text-gray-900">{pagination.totalRecords}</span> results
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handlePageChange(pagination.current - 1)}
-                    disabled={pagination.current === 1}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors duration-200"
-                  >
-                    Previous
-                  </button>
-                  <div className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg">
-                    Page {pagination.current} of {pagination.total}
-                  </div>
-                  <button
-                    onClick={() => handlePageChange(pagination.current + 1)}
-                    disabled={pagination.current === pagination.total}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors duration-200"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              <h3 className="text-xl font-medium text-gray-900 mb-3">No violations found</h3>
+              <p className="text-gray-500 max-w-md mx-auto leading-relaxed">
+                {filters.status === 'pending' 
+                  ? 'No pending violations at the moment. All violations have been processed.'
+                  : 'Violations will appear here once enforcers record them using their IoT devices.'
+                }
+              </p>
             </div>
           )}
+        </div>
+
+        {/* Pagination */}
+        {pagination && pagination.total > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                Showing <span className="font-medium text-gray-900">{((pagination.current - 1) * filters.limit) + 1}</span> to{' '}
+                <span className="font-medium text-gray-900">{Math.min(pagination.current * filters.limit, pagination.totalRecords)}</span> of{' '}
+                <span className="font-medium text-gray-900">{pagination.totalRecords}</span> results
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(pagination.current - 1)}
+                  disabled={pagination.current === 1}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors duration-200"
+                >
+                  Previous
+                </button>
+                <div className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg">
+                  Page {pagination.current} of {pagination.total}
+                </div>
+                <button
+                  onClick={() => handlePageChange(pagination.current + 1)}
+                  disabled={pagination.current === pagination.total}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white transition-colors duration-200"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Edit Violation Modal */}
@@ -861,6 +1180,9 @@ const Violations = () => {
                   <p><span className="font-medium text-gray-900">Violator:</span> {editingViolation.violator_name}</p>
                   <p><span className="font-medium text-gray-900">Fine:</span> ₱{editingViolation.fine_amount?.toLocaleString()}</p>
                   <p><span className="font-medium text-gray-900">Location:</span> {editingViolation.location}</p>
+                  {editingViolation.violator_phone && (
+                    <p><span className="font-medium text-gray-900">Phone:</span> {editingViolation.violator_phone}</p>
+                  )}
                 </div>
               </div>
 
@@ -872,6 +1194,7 @@ const Violations = () => {
                   name="status"
                   defaultValue={editingViolation.status}
                   required
+                  onChange={(e) => setSelectedStatus(e.target.value)}
                   className={`mobile-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 ${
                     formErrors.status ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
                   }`}
@@ -891,6 +1214,56 @@ const Violations = () => {
                   </p>
                 )}
               </div>
+
+              {/* SMS Notification Option - Only show when status is 'paid' or being changed to 'paid' */}
+              {(editingViolation.status === 'paid' || selectedStatus === 'paid') && editingViolation.violator_phone && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-start">
+                    <div className="flex items-center h-5">
+                      <input
+                        id="sendSMS"
+                        name="sendSMS"
+                        type="checkbox"
+                        defaultChecked={editingViolation.status === 'paid'}
+                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                    </div>
+                    <div className="ml-3 text-sm">
+                      <label htmlFor="sendSMS" className="font-medium text-gray-700">
+                        Send SMS Notification
+                      </label>
+                      <p className="text-gray-500">
+                        Notify the violator that their violation has been marked as paid.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Penalty Reminder Option - Only show when status is 'issued' or being changed to 'issued' */}
+              {(editingViolation.status === 'issued' || selectedStatus === 'issued') && editingViolation.violator_phone && (
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mt-4">
+                  <div className="flex items-start">
+                    <div className="flex items-center h-5">
+                      <input
+                        id="sendPenaltyReminder"
+                        name="sendPenaltyReminder"
+                        type="checkbox"
+                        defaultChecked={false}
+                        className="focus:ring-yellow-500 h-4 w-4 text-yellow-600 border-gray-300 rounded"
+                      />
+                    </div>
+                    <div className="ml-3 text-sm">
+                      <label htmlFor="sendPenaltyReminder" className="font-medium text-gray-700">
+                        Send Penalty Reminder
+                      </label>
+                      <p className="text-gray-500">
+                        Send a penalty reminder SMS to the violator for overdue payments.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -918,16 +1291,16 @@ const Violations = () => {
               <div className="mobile-button-group pt-6 border-t border-gray-100">
                 <button
                   type="submit"
-                  disabled={updateViolationMutation.isPending}
+                  disabled={updateViolationMutation.isPending || sendSMSMutation.isPending}
                   className="mobile-btn-primary flex-1"
                 >
-                  {updateViolationMutation.isPending ? (
+                  {updateViolationMutation.isPending || sendSMSMutation.isPending ? (
                     <div className="flex items-center justify-center gap-2">
                       <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Updating...
+                      {sendSMSMutation.isPending ? 'Sending SMS...' : 'Updating...'}
                     </div>
                   ) : (
                     'Update Violation'
@@ -939,6 +1312,7 @@ const Violations = () => {
                     setShowEditModal(false);
                     setEditingViolation(null);
                     setFormErrors({});
+                    setSelectedStatus('');
                   }}
                   className="mobile-btn-secondary flex-1"
                 >

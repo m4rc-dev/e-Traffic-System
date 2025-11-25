@@ -1,6 +1,7 @@
 const express = require('express');
 const { protect, adminOnly } = require('../middleware/auth');
 const { getAuditLogs, getAuditStats } = require('../utils/auditLogger');
+const { getFirebaseService } = require('../config/database');
 
 const router = express.Router();
 
@@ -87,23 +88,30 @@ router.get('/stats', async (req, res) => {
 router.get('/logs/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const firebaseService = getFirebaseService();
 
-    const [auditLog] = await query(`
-      SELECT 
-        al.*,
-        u.full_name as user_name,
-        u.email as user_email,
-        u.role as user_role
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      WHERE al.id = ?
-    `, [id]);
+    const auditLog = await firebaseService.findById('audit_logs', id);
 
     if (!auditLog) {
       return res.status(404).json({
         success: false,
         error: 'Audit log not found'
       });
+    }
+
+    // Get user details if exists
+    if (auditLog.user_id) {
+      try {
+        const user = await firebaseService.findById('users', auditLog.user_id);
+        auditLog.user_name = user ? user.full_name : 'Unknown';
+        auditLog.user_email = user ? user.email : 'Unknown';
+        auditLog.user_role = user ? user.role : 'Unknown';
+      } catch (error) {
+        console.error(`Error fetching user for audit log ${auditLog.id}:`, error);
+        auditLog.user_name = 'Unknown';
+        auditLog.user_email = 'Unknown';
+        auditLog.user_role = 'Unknown';
+      }
     }
 
     res.status(200).json({
@@ -126,23 +134,31 @@ router.get('/logs/:id', async (req, res) => {
 router.get('/recent', async (req, res) => {
   try {
     const { limit = 20 } = req.query;
+    const firebaseService = getFirebaseService();
 
-    const recentLogs = await query(`
-      SELECT 
-        al.*,
-        u.full_name as user_name,
-        u.email as user_email,
-        u.role as user_role
-      FROM audit_logs al
-      LEFT JOIN users u ON al.user_id = u.id
-      WHERE al.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-      ORDER BY al.created_at DESC
-      LIMIT ${parseInt(limit)}
-    `);
+    // Calculate 24 hours ago
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    // Get audit logs from the last 24 hours
+    const recentLogs = await firebaseService.getAuditLogsWithUser(
+      {}, 
+      { 
+        limit: parseInt(limit),
+        orderBy: { field: 'created_at', direction: 'desc' }
+      }
+    );
+
+    // Filter by date in memory (since Firebase doesn't support date range queries easily)
+    const filteredLogs = recentLogs.filter(log => {
+      if (!log.created_at) return false;
+      const logDate = new Date(log.created_at.toDate ? log.created_at.toDate() : log.created_at);
+      return logDate >= twentyFourHoursAgo;
+    });
 
     res.status(200).json({
       success: true,
-      data: recentLogs
+      data: filteredLogs
     });
 
   } catch (error) {

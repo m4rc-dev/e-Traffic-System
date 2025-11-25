@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
-import { AlertTriangle, Users, TrendingUp, DollarSign, Shield, Clock, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Users, TrendingUp, DollarSign, Shield, Clock } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const RepeatOffenders = () => {
@@ -16,7 +16,9 @@ const RepeatOffenders = () => {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  const data = repeatOffendersResponse?.data?.data;
+  // Extract data correctly from the new API response structure
+  const repeatOffenders = repeatOffendersResponse?.data?.data?.repeatOffenders || [];
+  const statistics = repeatOffendersResponse?.data?.data?.statistics || {};
 
   if (isLoading) {
     return (
@@ -33,9 +35,6 @@ const RepeatOffenders = () => {
       </div>
     );
   }
-
-  const repeatOffenders = data?.repeatOffenders || [];
-  const statistics = data?.statistics || {};
 
   return (
     <div className="space-y-6 sm:space-y-8 mobile-padding">
@@ -127,11 +126,11 @@ const RepeatOffenders = () => {
           <div className="p-2 bg-blue-100 rounded-lg">
             <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
           </div>
-          <h3 className="responsive-text-lg font-semibold text-gray-900">Filter Options</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Filter Repeat Offenders</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <div className="space-y-2">
-            <label className="block responsive-text-sm font-medium text-gray-700">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Minimum Violations
             </label>
             <select
@@ -145,8 +144,8 @@ const RepeatOffenders = () => {
               <option value={10}>10+ Violations</option>
             </select>
           </div>
-          <div className="space-y-2">
-            <label className="block responsive-text-sm font-medium text-gray-700">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Results Limit
             </label>
             <select
@@ -194,47 +193,27 @@ const RepeatOffenders = () => {
             <p className="responsive-text-sm text-gray-500">No violators found with {filters.min_violations}+ violations</p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <table className="min-w-full divide-y divide-gray-200 mobile-table">
-              <thead className="bg-gradient-to-r from-gray-100 to-gray-200">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Violator
-                    </div>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Violator
                   </th>
-                  <th className="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" />
-                      Violations
-                    </div>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total Violations
                   </th>
-                  <th className="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      Total Fines
-                    </div>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Financial Overview
                   </th>
-                  <th className="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4" />
-                      Status
-                    </div>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Status
                   </th>
-                  <th className="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      First Violation
-                    </div>
-                    <div className="text-xs font-normal text-gray-500 mt-1">Date & Type</div>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    First Violation
                   </th>
-                  <th className="px-3 py-3 sm:px-6 sm:py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Last Violation
-                    </div>
-                    <div className="text-xs font-normal text-gray-500 mt-1">Date & Type</div>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Violation
                   </th>
                 </tr>
               </thead>
@@ -295,7 +274,7 @@ const RepeatOffenders = () => {
                       <div className="space-y-2">
                         <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
                           {offender.first_violation_date ? 
-                            new Date(offender.first_violation_date).toLocaleDateString() : '-'}
+                            new Date(offender.first_violation_date.toDate ? offender.first_violation_date.toDate() : offender.first_violation_date).toLocaleDateString() : '-'}
                         </div>
                         {offender.first_violation_type && (
                           <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -308,7 +287,7 @@ const RepeatOffenders = () => {
                       <div className="space-y-2">
                         <div className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
                           {offender.last_violation_date ? 
-                            new Date(offender.last_violation_date).toLocaleDateString() : '-'}
+                            new Date(offender.last_violation_date.toDate ? offender.last_violation_date.toDate() : offender.last_violation_date).toLocaleDateString() : '-'}
                         </div>
                         {offender.last_violation_type && (
                           <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">

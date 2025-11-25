@@ -19,10 +19,10 @@
 │ • full_name     │    │ • location      │    │ • api_response  │
 │ • badge_number  │    │ • fine_amount   │    │ • sent_at       │
 │ • phone_number  │    │ • status        │    │ • delivered_at  │
-│ • is_active     │    │ • evidence_photos│   │                 │
-│ • last_login    │    │ • issued_at     │    │                 │
-│ • created_at    │    │ • due_date      │    │                 │
-│ • updated_at    │    │ • paid_at       │    │                 │
+│ • is_active     │    │ • issued_at     │    │                 │
+│ • last_login    │    │ • due_date      │    │                 │
+│ • created_at    │    │ • paid_at       │    │                 │
+│ • updated_at    │    │                 │    │                 │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │
          │                       │

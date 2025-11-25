@@ -71,6 +71,7 @@ export const violationsAPI = {
   updateViolation: (id, data) => api.put(`/violations/${id}`, data),
   deleteViolation: (id) => api.delete(`/violations/${id}`),
   getViolationStats: () => api.get('/violations/stats/overview'),
+  sendSMS: (id, data) => api.post(`/violations/${id}/send-sms`, data),
   exportViolations: (params) => {
     // Build URL with parameters
     const queryString = new URLSearchParams(params).toString();

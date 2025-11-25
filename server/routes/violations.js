@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
       limit = 10, 
       search = '', 
       status = '', 
-        enforcer_id = '',
+      enforcer_id = '',
       violation_type = '',
       violator_name = '',
       repeat_offender = ''
@@ -44,48 +44,50 @@ router.get('/', async (req, res) => {
     if (enforcer_id) {
       conditions.enforcer_id = enforcer_id;
     }
-
-    if (repeat_offender === 'true') {
-      conditions.is_repeat_offender = true;
-    } else if (repeat_offender === 'false') {
-      conditions.is_repeat_offender = false;
+    
+    if (violation_type) {
+      conditions.violation_type = violation_type;
     }
-
-    const violationTypeFilterRaw = violation_type ? String(violation_type).trim() : '';
-    const violatorNameFilterRaw = violator_name ? String(violator_name).trim() : '';
-    const searchFilterRaw = search ? String(search).trim() : '';
     
-    const violationTypeFilter = violationTypeFilterRaw.toLowerCase();
-    const violatorNameFilter = violatorNameFilterRaw.toLowerCase();
-    const searchFilter = searchFilterRaw.toLowerCase();
-    
-    const needsClientFiltering = Boolean(
-      searchFilterRaw ||
-      violationTypeFilterRaw ||
-      violatorNameFilterRaw
-    );
-    
-    // Get violations (avoid composite index by fetching all and sorting in memory if needed)
-    const firebaseOptions = {
-      sortInMemory: Object.keys(conditions).length > 0
-    };
-
-    if (!needsClientFiltering) {
-      // Normal pagination when no client-side filtering needed
-      firebaseOptions.limit = validLimit;
-      firebaseOptions.offset = offset;
-    } else {
-      // When client-side filtering is needed, fetch more records to ensure we can filter properly
-      // Set a reasonable maximum to prevent performance issues (5000 should be enough for most cases)
-      firebaseOptions.limit = 5000;
-      firebaseOptions.offset = 0;
+    if (repeat_offender !== '') {
+      conditions.is_repeat_offender = repeat_offender === 'true';
     }
-
-    let violations = await firebaseService.getViolations(conditions, firebaseOptions);
+    
+    // For search, we'll need to filter in memory since Firebase doesn't support full-text search
+    const allViolations = await firebaseService.getViolations(conditions);
+    
+    // Apply search filters in memory
+    let filteredViolations = allViolations;
+    
+    if (search) {
+      const searchTerm = search.toLowerCase();
+      filteredViolations = filteredViolations.filter(violation => 
+        (violation.violation_number && violation.violation_number.toLowerCase().includes(searchTerm)) ||
+        (violation.violator_name && violation.violator_name.toLowerCase().includes(searchTerm)) ||
+        (violation.vehicle_plate && violation.vehicle_plate.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    if (violator_name) {
+      const searchTerm = violator_name.toLowerCase();
+      filteredViolations = filteredViolations.filter(violation => 
+        violation.violator_name && violation.violator_name.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Sort by created_at descending (newest first)
+    filteredViolations.sort((a, b) => {
+      const aDate = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0);
+      const bDate = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0);
+      return bDate - aDate;
+    });
+    
+    // Apply pagination
+    const paginatedViolations = filteredViolations.slice(offset, offset + validLimit);
     
     // Get enforcer details for each violation
     const violationsWithEnforcer = await Promise.all(
-      violations.map(async (violation) => {
+      paginatedViolations.map(async (violation) => {
         if (violation.enforcer_id) {
           try {
             const enforcer = await firebaseService.findById('users', violation.enforcer_id);
@@ -111,77 +113,14 @@ router.get('/', async (req, res) => {
       })
     );
     
-    violations = violationsWithEnforcer;
-    
-    // Apply client-side filtering for search, violator name, and violation type
-    let filteredViolations = violations;
-    
-    // Apply violator name filter (specific filter)
-    if (violatorNameFilterRaw) {
-      filteredViolations = filteredViolations.filter(violation => {
-        const violatorName = violation.violator_name || '';
-        return violatorName.toLowerCase().includes(violatorNameFilter);
-      });
-    }
-    
-    // Apply violation type filter (specific filter)
-    if (violationTypeFilterRaw) {
-      filteredViolations = filteredViolations.filter(violation => {
-        const violationType = violation.violation_type || '';
-        return violationType.toLowerCase().includes(violationTypeFilter);
-      });
-    }
-
-    // Apply general search filter (works in addition to specific filters)
-    if (searchFilterRaw) {
-      filteredViolations = filteredViolations.filter(violation => {
-        const violatorName = (violation.violator_name || '').toLowerCase();
-        const violatorLicense = (violation.violator_license || '').toLowerCase();
-        const vehiclePlate = (violation.vehicle_plate || '').toLowerCase();
-        const violationType = (violation.violation_type || '').toLowerCase();
-        const location = (violation.location || '').toLowerCase();
-        
-        return violatorName.includes(searchFilter) ||
-               violatorLicense.includes(searchFilter) ||
-               vehiclePlate.includes(searchFilter) ||
-               violationType.includes(searchFilter) ||
-               location.includes(searchFilter);
-      });
-    }
-
-    let totalCount;
-    let paginatedViolations = filteredViolations;
-    let totalPages;
-    let currentPage = validPage;
-
-    if (needsClientFiltering) {
-      totalCount = filteredViolations.length;
-      totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / validLimit);
-      if (totalPages === 0) {
-        currentPage = 1;
-      } else if (validPage > totalPages) {
-        currentPage = totalPages;
-      }
-      const startIndex = (currentPage - 1) * validLimit;
-      paginatedViolations = filteredViolations.slice(startIndex, startIndex + validLimit);
-    } else {
-      totalCount = await firebaseService.count('violations', conditions);
-      totalPages = Math.ceil(totalCount / validLimit);
-      if (totalPages === 0) {
-        currentPage = 1;
-      } else if (validPage > totalPages) {
-        currentPage = totalPages;
-      }
-    }
-    
     res.status(200).json({
       success: true,
       data: {
-        violations: paginatedViolations,
+        violations: violationsWithEnforcer,
         pagination: {
-          current: currentPage,
-          total: totalPages,
-          totalRecords: totalCount
+          current: validPage,
+          total: Math.ceil(filteredViolations.length / validLimit),
+          totalRecords: filteredViolations.length
         }
       }
     });
@@ -212,10 +151,20 @@ router.get('/:id', async (req, res) => {
       });
     }
     
-    // Get enforcer info
+    // Get enforcer details if exists
     if (violation.enforcer_id) {
-      const enforcer = await firebaseService.findById('users', violation.enforcer_id);
-      violation.enforcer_name = enforcer ? enforcer.full_name : 'Unknown';
+      try {
+        const enforcer = await firebaseService.findById('users', violation.enforcer_id);
+        violation.enforcer_name = enforcer ? enforcer.full_name : 'Unknown';
+        violation.enforcer_badge = enforcer ? enforcer.badge_number : 'Unknown';
+      } catch (error) {
+        console.error(`Error fetching enforcer for violation ${violation.id}:`, error);
+        violation.enforcer_name = 'Unknown';
+        violation.enforcer_badge = 'Unknown';
+      }
+    } else {
+      violation.enforcer_name = 'Unknown';
+      violation.enforcer_badge = 'Unknown';
     }
     
     res.status(200).json({
@@ -261,6 +210,23 @@ router.post('/', [
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
     
+    // Check if violator is a repeat offender by looking for existing violations
+    // with the same license number
+    let isRepeatOffender = false;
+    let previousViolationsCount = 0;
+    
+    if (req.body.violator_license) {
+      // Find existing violations with the same license number
+      const existingViolations = await firebaseService.getViolations({
+        violator_license: req.body.violator_license
+      });
+      
+      if (existingViolations && existingViolations.length > 0) {
+        isRepeatOffender = true;
+        previousViolationsCount = existingViolations.length;
+      }
+    }
+    
     // Create violation
     const violation = await firebaseService.createViolation({
       violation_number: violationNumber,
@@ -275,13 +241,12 @@ router.post('/', [
       violation_type: req.body.violation_type,
       violation_description: req.body.violation_description || '',
       location: req.body.location,
-      latitude: req.body.latitude || null,
-      longitude: req.body.longitude || null,
       fine_amount: parseFloat(req.body.fine_amount),
       status: 'pending',
-      evidence_photos: req.body.evidence_photos || [],
       notes: req.body.notes || '',
-      due_date: dueDate
+      due_date: dueDate,
+      is_repeat_offender: isRepeatOffender,
+      previous_violations_count: previousViolationsCount
     });
 
     // Log audit
@@ -354,6 +319,94 @@ router.put('/:id', [
     // Update violation
     const updatedViolation = await firebaseService.updateViolation(id, req.body);
 
+    // Check if status was updated to 'issued' and send penalty reminder if overdue
+    if (req.body.status === 'issued' && currentViolation.status !== 'issued') {
+      // Check if violation is overdue (more than 7 days past due date)
+      if (currentViolation.due_date && currentViolation.violator_phone) {
+        const dueDate = currentViolation.due_date.toDate ? 
+          currentViolation.due_date.toDate() : 
+          new Date(currentViolation.due_date);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+        
+        // If overdue by more than 7 days, send penalty reminder
+        if (daysOverdue > 7) {
+          const { sendSMS } = require('../services/smsService');
+          
+          // Create penalty reminder message
+          const message = `Good day, Ma'am/Sir.\n\n` +
+            `This is an official reminder from e-Traffic.\n\n` +
+            `Our records show that the following traffic violation has exceeded the allowed 7-day payment period:\n\n` +
+            `Violation Details:\n\n` +
+            `Violator Name: ${currentViolation.violator_name}\n` +
+            `Plate Number: ${currentViolation.vehicle_plate}\n` +
+            `Violation Type: ${currentViolation.violation_type}\n` +
+            `Fine Amount: ₱${currentViolation.fine_amount}\n` +
+            `Location: ${currentViolation.location}\n` +
+            `Date of Violation: ${dueDate.toLocaleDateString()}\n\n` +
+            `Please settle your penalty at the Cebu City Transportation Office to avoid further penalties.\n\n` +
+            `Thank you for your cooperation.`;
+          
+          // Send SMS in the background (don't wait for result)
+          sendSMS(currentViolation.violator_phone, message, id)
+            .then(result => {
+              if (result.success) {
+                console.log(`✅ Penalty reminder sent for violation ${currentViolation.violation_number}`);
+              } else {
+                console.log(`❌ Failed to send penalty reminder for violation ${currentViolation.violation_number}: ${result.message}`);
+              }
+            })
+            .catch(error => {
+              console.error(`❌ Error sending penalty reminder for violation ${currentViolation.violation_number}:`, error.message);
+            });
+        }
+      }
+    }
+
+    // Check if client requested to send penalty reminder
+    if (req.body.sendPenaltyReminder) {
+      // Check if violation has necessary data
+      if (currentViolation.violator_phone && currentViolation.due_date) {
+        const { sendSMS } = require('../services/smsService');
+        
+        // Get due date
+        const dueDate = currentViolation.due_date.toDate ? 
+          currentViolation.due_date.toDate() : 
+          new Date(currentViolation.due_date);
+        
+        // Create penalty reminder message
+        const message = `Good day, Ma'am/Sir.\n\n` +
+          `This is an official reminder from e-Traffic.\n\n` +
+          `Our records show that the following traffic violation has exceeded the allowed 7-day payment period:\n\n` +
+          `Violation Details:\n\n` +
+          `Violator Name: ${currentViolation.violator_name}\n` +
+          `Plate Number: ${currentViolation.vehicle_plate}\n` +
+          `Violation Type: ${currentViolation.violation_type}\n` +
+          `Fine Amount: ₱${currentViolation.fine_amount}\n` +
+          `Location: ${currentViolation.location}\n` +
+          `Date of Violation: ${dueDate.toLocaleDateString()}\n\n` +
+          `Please settle your penalty at the Cebu City Transportation Office to avoid further penalties.\n\n` +
+          `Thank you for your cooperation.`;
+        
+        // Send SMS in the background (don't wait for result)
+        sendSMS(currentViolation.violator_phone, message, id)
+          .then(result => {
+            if (result.success) {
+              console.log(`✅ Penalty reminder sent for violation ${currentViolation.violation_number}`);
+            } else {
+              console.log(`❌ Failed to send penalty reminder for violation ${currentViolation.violation_number}: ${result.message}`);
+            }
+          })
+          .catch(error => {
+            console.error(`❌ Error sending penalty reminder for violation ${currentViolation.violation_number}:`, error.message);
+          });
+      }
+    }
+
     // Log audit
     await logAudit(
       req.user.id,
@@ -376,6 +429,67 @@ router.put('/:id', [
     res.status(500).json({
       success: false,
       error: 'Failed to update violation'
+    });
+  }
+});
+
+// @desc    Send SMS notification for a violation
+// @route   POST /api/violations/:id/send-sms
+// @access  Private (Admin only)
+router.post('/:id/send-sms', authorize('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    const firebaseService = getFirebaseService();
+    
+    // Get violation
+    const violation = await firebaseService.findById('violations', id);
+    if (!violation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Violation not found'
+      });
+    }
+    
+    // Check if violator has a phone number
+    if (!violation.violator_phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'No phone number available for this violator'
+      });
+    }
+    
+    // Send SMS
+    const smsResult = await sendSMS(violation.violator_phone, message, id);
+    
+    if (smsResult.success) {
+      // Log audit
+      await logAudit(
+        req.user.id,
+        'SEND_SMS',
+        'violations',
+        id,
+        null,
+        { message, phone_number: violation.violator_phone },
+        req
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'SMS sent successfully',
+        data: smsResult
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: smsResult.message || 'Failed to send SMS'
+      });
+    }
+  } catch (error) {
+    console.error('Send SMS error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send SMS'
     });
   }
 });

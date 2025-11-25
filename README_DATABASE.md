@@ -58,11 +58,8 @@ To view the interactive Entity Relationship Diagram:
 | violation_type | VARCHAR(100) | NOT NULL | Type of violation |
 | violation_description | TEXT | | Detailed description |
 | location | VARCHAR(255) | NOT NULL | Violation location |
-| latitude | DECIMAL(10,8) | | GPS latitude |
-| longitude | DECIMAL(11,8) | | GPS longitude |
 | fine_amount | DECIMAL(10,2) | NOT NULL | Penalty amount |
 | status | ENUM | DEFAULT 'pending' | Violation status |
-| evidence_photos | JSON | | Photo evidence |
 | notes | TEXT | | Additional notes |
 | issued_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Issue time |
 | due_date | DATE | | Payment deadline |
@@ -81,8 +78,6 @@ To view the interactive Entity Relationship Diagram:
 • **Core Business Logic**: Central to traffic management system
 • **Legal Compliance**: Maintains official violation records
 • **Financial Tracking**: Manages fine collection
-• **Evidence Management**: Stores photos and documentation
-• **Geographic Data**: Enables location-based reporting
 • **Status Workflow**: Tracks violation lifecycle
 
 ---
@@ -168,7 +163,6 @@ To view the interactive Entity Relationship Diagram:
 - `sms_enabled` - Enable/disable SMS notifications
 - `default_fine_amount` - Default fine for violations
 - `violation_due_days` - Days until payment due
-- `max_evidence_photos` - Maximum photos per violation
 - `system_maintenance_mode` - Maintenance mode flag
 
 **Why Important:**
@@ -220,7 +214,7 @@ To view the interactive Entity Relationship Diagram:
 
 ### Data Types:
 - **DECIMAL**: Monetary values (precision maintained)
-- **JSON**: Flexible data storage (photos, responses)
+- **JSON**: Flexible data storage (responses)
 - **ENUM**: Controlled value sets (status fields)
 - **TIMESTAMP**: Automatic date/time management
 

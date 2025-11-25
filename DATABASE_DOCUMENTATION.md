@@ -60,10 +60,8 @@ The E-Traffic System uses a MySQL database with 5 core tables designed to handle
 - `violation_type` - Type of traffic violation
 - `violation_description` - Detailed description
 - `location` - Where the violation occurred
-- `latitude/longitude` - GPS coordinates for mapping
 - `fine_amount` - Monetary penalty amount
 - `status` - Current status: pending, issued, paid, disputed, cancelled
-- `evidence_photos` - JSON array of photo URLs
 - `notes` - Additional notes
 - `issued_at` - When the violation was issued
 - `due_date` - Payment deadline
@@ -73,8 +71,6 @@ The E-Traffic System uses a MySQL database with 5 core tables designed to handle
 • **Core Business Logic**: Central to the entire traffic management system
 • **Legal Compliance**: Maintains official records of traffic violations
 • **Financial Tracking**: Manages fine collection and payment status
-• **Evidence Management**: Stores photos and documentation
-• **Geographic Data**: Enables location-based reporting and mapping
 • **Status Workflow**: Tracks violation lifecycle from issue to resolution
 • **Integration Point**: Links to SMS notifications and audit logs
 
@@ -83,7 +79,6 @@ The E-Traffic System uses a MySQL database with 5 core tables designed to handle
 - Must be linked to an active enforcer
 - Fine amounts must be positive numbers
 - Due dates are calculated based on issue date
-- Evidence photos are stored as JSON array
 
 ---
 
@@ -211,7 +206,7 @@ The E-Traffic System uses a MySQL database with 5 core tables designed to handle
 
 ### Data Types:
 - **DECIMAL** for monetary values (precision maintained)
-- **JSON** for flexible data storage (evidence photos, API responses)
+- **JSON** for flexible data storage (API responses)
 - **ENUM** for controlled value sets (status fields)
 - **TIMESTAMP** for automatic date/time management
 

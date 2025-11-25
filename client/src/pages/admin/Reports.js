@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { reportsAPI } from '../../services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
@@ -11,7 +11,9 @@ import {
   PieChart,
   Table,
   ArrowLeft,
-  AlertCircle
+  AlertCircle,
+  Award,
+  BarChart as BarChartIcon
 } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
@@ -26,7 +28,9 @@ import {
   Pie,
   Cell,
   AreaChart,
-  Area
+  Area,
+  Legend,
+  LabelList
 } from 'recharts';
 
 const COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#22c55e', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
@@ -125,13 +129,13 @@ const ExportButtons = ({ onExport, reportType, isLoading, hasData }) => (
       <span className="sm:hidden">JSON</span>
     </button>
     <button
-      onClick={() => onExport('csv')}
+      onClick={() => onExport('pdf')}
       disabled={isLoading || !hasData}
       className="mobile-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
     >
       <Download className="h-4 w-4" />
-      <span className="hidden sm:inline">Export CSV</span>
-      <span className="sm:hidden">CSV</span>
+      <span className="hidden sm:inline">Export PDF</span>
+      <span className="sm:hidden">PDF</span>
     </button>
   </div>
 );
@@ -173,6 +177,12 @@ const ViolationsReport = ({ filters, setFilters }) => {
   const exportReport = (format) => {
     if (!reportData) return;
     
+    // Helper function to escape special characters in PDF text
+    const escapePdfText = (text) => {
+      if (typeof text !== 'string') return text;
+      return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    };
+    
     if (format === 'json') {
       const dataStr = JSON.stringify(reportData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -182,19 +192,50 @@ const ViolationsReport = ({ filters, setFilters }) => {
       link.download = `violations-report-${filters.startDate}-to-${filters.endDate}.json`;
       link.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'csv') {
-      // Use server-side CSV export
-      const params = new URLSearchParams({
-        start_date: filters.startDate,
-        end_date: filters.endDate,
-        format: 'csv'
+    } else if (format === 'pdf') {
+      // Generate PDF using jsPDF
+      const { jsPDF } = window.jspdf || require('jspdf');
+      window.jspdfAutoTable || require('jspdf-autotable');
+      
+      const doc = new jsPDF();
+      doc.setFont('helvetica');
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text(escapePdfText('Violations Report'), 14, 20);
+      doc.setFontSize(12);
+      doc.text(escapePdfText(`Period: ${filters.startDate} to ${filters.endDate}`), 14, 30);
+      
+      // Add summary data
+      const summary = reportData.summary;
+      doc.setFontSize(14);
+      doc.text(escapePdfText('Summary'), 14, 45);
+      doc.setFontSize(12);
+      doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 55);
+      doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
+      doc.text(escapePdfText(`Pending Fines: ₱${parseFloat(summary.pending_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 75);
+      doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 14, 85);
+      
+      // Add violations table
+      doc.autoTable({
+        startY: 95,
+        head: [[escapePdfText('Violation #'), escapePdfText('Type'), escapePdfText('Fine'), escapePdfText('Status'), escapePdfText('Enforcer'), escapePdfText('Location'), escapePdfText('Date')]],
+        body: reportData.violations.map(violation => [
+          escapePdfText(violation.violation_number),
+          escapePdfText(violation.violation_type),
+          escapePdfText(`₱${parseFloat(violation.fine_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+          escapePdfText(violation.status),
+          escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge}`),
+          escapePdfText(violation.location),
+          escapePdfText(new Date(violation.created_at).toLocaleDateString())
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [22, 160, 133] },
+        margin: { top: 10 }
       });
       
-      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/reports/violations?${params}`;
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `violations-report-${filters.startDate}-to-${filters.endDate}.csv`;
-      link.click();
+      // Save the PDF
+      doc.save(`violations-report-${filters.startDate}-to-${filters.endDate}.pdf`);
     }
   };
 
@@ -430,37 +471,20 @@ const EnforcersReport = ({ filters, setFilters }) => {
     setIsLoading(true);
     setError(null);
     try {
-      console.log('Generating enforcers report with filters:', filters);
       const response = await reportsAPI.getEnforcersReport({
         start_date: filters.startDate,
         end_date: filters.endDate
       });
       
-      console.log('Enforcers report response:', response);
-      
       if (response.data.success) {
         setReportData(response.data.data);
         setLastRefresh(new Date());
-        console.log('Enforcers report data set:', response.data.data);
       } else {
         setError('Failed to generate report');
       }
     } catch (error) {
-      console.error('Failed to generate enforcers report:', error);
-      console.error('Error response:', error.response);
-      console.error('Error message:', error.message);
-      
-      if (error.response?.status === 500) {
-        setError('Server error: Database connection or query failed');
-      } else if (error.response?.status === 404) {
-        setError('Report endpoint not found');
-      } else if (error.response?.status === 401) {
-        setError('Authentication failed. Please login again.');
-      } else if (error.code === 'ERR_NETWORK') {
-        setError('Network error: Cannot connect to server');
-      } else {
-        setError(error.response?.data?.error || error.message || 'Failed to generate report');
-      }
+      console.error('Failed to generate report:', error);
+      setError(error.response?.data?.error || 'Failed to generate report');
     } finally {
       setIsLoading(false);
     }
@@ -468,6 +492,12 @@ const EnforcersReport = ({ filters, setFilters }) => {
 
   const exportReport = (format) => {
     if (!reportData) return;
+    
+    // Helper function to escape special characters in PDF text
+    const escapePdfText = (text) => {
+      if (typeof text !== 'string') return text;
+      return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    };
     
     if (format === 'json') {
       const dataStr = JSON.stringify(reportData, null, 2);
@@ -478,18 +508,51 @@ const EnforcersReport = ({ filters, setFilters }) => {
       link.download = `enforcers-report-${filters.startDate}-to-${filters.endDate}.json`;
       link.click();
       URL.revokeObjectURL(url);
-    } else if (format === 'csv') {
-      const params = new URLSearchParams({
-        start_date: filters.startDate,
-        end_date: filters.endDate,
-        format: 'csv'
+    } else if (format === 'pdf') {
+      // Generate PDF using jsPDF
+      const { jsPDF } = window.jspdf || require('jspdf');
+      window.jspdfAutoTable || require('jspdf-autotable');
+      
+      const doc = new jsPDF();
+      doc.setFont('helvetica');
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text(escapePdfText('Enforcers Performance Report'), 14, 20);
+      doc.setFontSize(12);
+      doc.text(escapePdfText(`Period: ${filters.startDate} to ${filters.endDate}`), 14, 30);
+      
+      // Add summary data
+      const summary = reportData.summary;
+      doc.setFontSize(14);
+      doc.text(escapePdfText('Summary'), 14, 45);
+      doc.setFontSize(12);
+      doc.text(escapePdfText(`Total Enforcers: ${summary.total_enforcers}`), 14, 55);
+      doc.text(escapePdfText(`Active Enforcers: ${summary.active_enforcers}`), 14, 65);
+      doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 75);
+      doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 85);
+      doc.text(escapePdfText(`Collected Fines: ₱${parseFloat(summary.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 95);
+      doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 14, 105);
+      
+      // Add enforcers performance table
+      doc.autoTable({
+        startY: 115,
+        head: [[escapePdfText('Enforcer'), escapePdfText('Badge'), escapePdfText('Violations'), escapePdfText('Total Fines'), escapePdfText('Collected'), escapePdfText('Collection Rate')]],
+        body: reportData.enforcers.map(enforcer => [
+          escapePdfText(enforcer.full_name),
+          escapePdfText(enforcer.badge_number),
+          escapePdfText(enforcer.total_violations),
+          escapePdfText(`₱${parseFloat(enforcer.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+          escapePdfText(`₱${parseFloat(enforcer.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+          escapePdfText(`${enforcer.collection_rate}%`)
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [22, 160, 133] },
+        margin: { top: 10 }
       });
       
-      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/reports/enforcers?${params}`;
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `enforcers-report-${filters.startDate}-to-${filters.endDate}.csv`;
-      link.click();
+      // Save the PDF
+      doc.save(`enforcers-report-${filters.startDate}-to-${filters.endDate}.pdf`);
     }
   };
 
@@ -629,6 +692,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
               </div>
 
               {/* Check if there are enforcers with data */}
+
               {(!reportData.enforcers || reportData.enforcers.length === 0) ? (
                 <div className="text-center py-12">
                   <div className="text-gray-500">
@@ -830,12 +894,97 @@ const DailySummaryReport = ({ filters, setFilters }) => {
     }
   };
 
+  const exportReport = (format) => {
+    if (!reportData) return;
+    
+    // Helper function to escape special characters in PDF text
+    const escapePdfText = (text) => {
+      if (typeof text !== 'string') return text;
+      return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    };
+    
+    if (format === 'pdf') {
+      // Generate PDF using jsPDF
+      const { jsPDF } = window.jspdf || require('jspdf');
+      window.jspdfAutoTable || require('jspdf-autotable');
+      
+      const doc = new jsPDF();
+      doc.setFont('helvetica');
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.text(escapePdfText('Daily Summary Report'), 14, 20);
+      doc.setFontSize(12);
+      doc.text(escapePdfText(`Date: ${filters.date || new Date().toISOString().split('T')[0]}`), 14, 30);
+      
+      // Add summary data
+      const summary = reportData.summary;
+      doc.setFontSize(14);
+      doc.text(escapePdfText('Summary'), 14, 45);
+      doc.setFontSize(12);
+      doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 55);
+      doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
+      doc.text(escapePdfText(`Active Enforcers: ${summary.active_enforcers}`), 14, 75);
+      doc.text(escapePdfText(`Avg per Enforcer: ${summary.avg_violations_per_enforcer}`), 14, 85);
+      
+      // Add violations by type table if data exists
+      if (reportData.violations_by_type && reportData.violations_by_type.length > 0) {
+        doc.autoTable({
+          startY: 95,
+          head: [[escapePdfText('Violation Type'), escapePdfText('Count')]],
+          body: reportData.violations_by_type.map(type => [
+            escapePdfText(type.violation_type),
+            escapePdfText(type.count)
+          ]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [22, 160, 133] },
+          margin: { top: 10 }
+        });
+      }
+      
+      // Add recent violations table if data exists
+      if (reportData.recent_violations && reportData.recent_violations.length > 0) {
+        const finalY = doc.lastAutoTable?.finalY || 130;
+        doc.autoTable({
+          startY: finalY + 10,
+          head: [[escapePdfText('Time'), escapePdfText('Violator'), escapePdfText('License'), escapePdfText('Type'), escapePdfText('Fine'), escapePdfText('Enforcer'), escapePdfText('Location')]],
+          body: reportData.recent_violations.map(violation => [
+            escapePdfText(new Date(violation.created_at).toLocaleTimeString()),
+            escapePdfText(violation.violator_name),
+            escapePdfText(violation.violator_license || '-'),
+            escapePdfText(violation.violation_type),
+            escapePdfText(`₱${parseFloat(violation.fine_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+            escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge}`),
+            escapePdfText(violation.location)
+          ]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [22, 160, 133] },
+          margin: { top: 10 }
+        });
+      }
+      
+      // Save the PDF
+      doc.save(`daily-summary-report-${filters.date || new Date().toISOString().split('T')[0]}.pdf`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Daily Summary Report</h2>
           <p className="text-gray-600">Quick overview of daily activities and key metrics</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportReport('pdf')}
+            disabled={!reportData}
+            className="mobile-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </button>
         </div>
       </div>
 
@@ -974,11 +1123,13 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                               data={reportData.violations_by_type}
                               cx="50%"
                               cy="50%"
-                              labelLine={false}
-                              label={({ violation_type, count }) => `${violation_type}: ${count}`}
-                              outerRadius={60}
+                              labelLine={true}
+                              label={({ violation_type, percent }) => `${violation_type}: ${(percent * 100).toFixed(0)}%`}
+                              outerRadius={80}
+                              innerRadius={40}
                               fill="#8884d8"
                               dataKey="count"
+                              nameKey="violation_type"
                             >
                               {reportData.violations_by_type.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -992,6 +1143,14 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                                 fontSize: '12px'
                               }}
+                              formatter={(value, name, props) => [value, 'Count']}
+                              labelFormatter={(label) => `Type: ${label}`}
+                            />
+                            <Legend 
+                              layout="horizontal" 
+                              verticalAlign="bottom" 
+                              align="center" 
+                              wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                             />
                           </RechartsPieChart>
                         </ResponsiveContainer>
@@ -1006,7 +1165,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                       <BarChart3 className="h-5 w-5 text-primary-600" />
                       Enforcer Activity
                     </h4>
-                    <p className="text-sm text-gray-600 mt-1">Individual enforcer performance</p>
+                    <p className="text-sm text-gray-600 mt-1">Top performing enforcers with violation counts</p>
                   </div>
                   <div className="p-4 sm:p-6">
                     {(!reportData.violations_by_enforcer || reportData.violations_by_enforcer.length === 0) ? (
@@ -1018,19 +1177,29 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     ) : (
                       <div className="mobile-chart-container">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={reportData.violations_by_enforcer}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <BarChart 
+                            data={reportData.violations_by_enforcer
+                              .slice() // Create a copy of the array
+                              .sort((a, b) => b.violations_count - a.violations_count) // Sort by violations_count descending
+                              .slice(0, 10) // Take only top 10 enforcers
+                            }
+                            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                            barCategoryGap="15%"
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                             <XAxis 
                               dataKey="full_name" 
                               tick={{ fontSize: 10, fill: '#64748b' }}
                               axisLine={{ stroke: '#e2e8f0' }}
                               angle={-45}
                               textAnchor="end"
-                              height={60}
+                              height={70}
+                              interval={0}
                             />
                             <YAxis 
                               tick={{ fontSize: 10, fill: '#64748b' }}
                               axisLine={{ stroke: '#e2e8f0' }}
+                              tickFormatter={(value) => Number.isInteger(value) ? value : ''}
                             />
                             <Tooltip 
                               contentStyle={{
@@ -1040,15 +1209,84 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                                 fontSize: '12px'
                               }}
+                              formatter={(value, name, props) => [
+                                `${value} violations`, 
+                                'Performance'
+                              ]}
+                              labelFormatter={(label) => `Enforcer: ${label}`}
+                              itemSorter={() => -1}
                             />
                             <Bar 
                               dataKey="violations_count" 
-                              fill="#3b82f6" 
                               name="Violations"
                               radius={[4, 4, 0, 0]}
-                            />
+                              barSize={20}
+                            >
+                              {reportData.violations_by_enforcer
+                                .slice() // Create a copy of the array
+                                .sort((a, b) => b.violations_count - a.violations_count) // Sort by violations_count descending
+                                .slice(0, 10) // Take only top 10 enforcers
+                                .map((entry, index) => (
+                                  <Cell 
+                                    key={`cell-${index}`} 
+                                    fill={
+                                      index === 0 ? '#10B981' : // Top performer - green
+                                      index === 1 ? '#3B82F6' : // Second - blue
+                                      index === 2 ? '#8B5CF6' : // Third - purple
+                                      '#94A3B8' // Others - gray
+                                    }
+                                  />
+                                ))
+                              }
+                              <LabelList 
+                                dataKey="violations_count" 
+                                position="top" 
+                                style={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} 
+                                formatter={(value) => Number.isInteger(value) ? value : ''}
+                              />
+                            </Bar>
                           </BarChart>
                         </ResponsiveContainer>
+                        {/* Performance Summary */}
+                        <div className="mt-6 pt-4 border-t border-gray-100">
+                          <div className="flex flex-wrap gap-4 justify-between">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <Award className="h-4 w-4 text-green-600" />
+                              </div>
+                              <div className="ml-3">
+                                <p className="text-sm font-medium text-gray-500">Top Performer</p>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {reportData.violations_by_enforcer
+                                    .slice()
+                                    .sort((a, b) => b.violations_count - a.violations_count)[0]?.full_name || 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <BarChartIcon className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div className="ml-3">
+                                <p className="text-sm font-medium text-gray-500">Avg. Violations</p>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {Math.round(reportData.violations_by_enforcer.reduce((sum, enforcer) => sum + enforcer.violations_count, 0) / reportData.violations_by_enforcer.length) || 0}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <Users className="h-4 w-4 text-purple-600" />
+                              </div>
+                              <div className="ml-3">
+                                <p className="text-sm font-medium text-gray-500">Total Enforcers</p>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {reportData.violations_by_enforcer.length}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1070,12 +1308,13 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fine</th>
                           <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Enforcer</th>
+                          <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                         </tr>
                       </thead>
                       <tbody className="table-body">
                         {(!reportData.recent_violations || reportData.recent_violations.length === 0) ? (
                           <tr>
-                            <td colSpan="5" className="px-6 py-12 text-center">
+                            <td colSpan="6" className="px-6 py-12 text-center">
                               <div className="flex flex-col items-center justify-center text-gray-400">
                                 <Table className="h-16 w-16 mb-4 opacity-20" />
                                 <p className="text-lg font-medium text-gray-500">No Data Available</p>
@@ -1105,7 +1344,13 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                 </span>
                               </td>
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toFixed(2)}</td>
-                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">{violation.enforcer_name}</td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                                <div>
+                                  <div className="font-medium text-gray-900">{violation.enforcer_name}</div>
+                                  <div className="text-xs text-gray-500">{violation.enforcer_badge}</div>
+                                </div>
+                              </td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">{violation.location}</td>
                             </tr>
                           ))
                         )}
@@ -1439,7 +1684,6 @@ const Reports = () => {
     month: new Date().getMonth() + 1
   });
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [isAutoRefresh, setIsAutoRefresh] = useState(true);
 
   const reportTypes = [
     {
@@ -1482,7 +1726,7 @@ const Reports = () => {
     }
   };
 
-  // Auto-refresh function
+  // Refresh function
   const refreshData = useCallback(() => {
     setLastUpdate(new Date());
     toast.success('Data refreshed successfully!', { duration: 2000 });
@@ -1494,19 +1738,6 @@ const Reports = () => {
       setTimeout(() => setActiveReport(currentReport), 100);
     }
   }, [activeReport]);
-
-  // Auto-refresh effect
-  useEffect(() => {
-    if (!isAutoRefresh) return;
-
-    const interval = setInterval(() => {
-      refreshData();
-      // Check for new violations and show notification
-      toast.success('🔄 Auto-refreshing data...', { duration: 1500 });
-    }, 30000); // Refresh every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [isAutoRefresh, refreshData]);
 
   const renderActiveReport = () => {
     switch (activeReport) {
@@ -1541,7 +1772,6 @@ const Reports = () => {
                   <span>Real-time data updates</span>
                 </div>
                 <span className="text-xs text-gray-500 hidden sm:inline">• Last updated: {lastUpdate.toLocaleTimeString()}</span>
-                <span className="text-xs text-green-600">• Auto-refresh: {isAutoRefresh ? 'ON' : 'OFF'}</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                 <button
@@ -1554,16 +1784,6 @@ const Reports = () => {
                   <span className="hidden sm:inline">Refresh Now</span>
                   <span className="sm:hidden">Refresh</span>
                 </button>
-                <label className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-600 w-full sm:w-auto">
-                  <input
-                    type="checkbox"
-                    checked={isAutoRefresh}
-                    onChange={(e) => setIsAutoRefresh(e.target.checked)}
-                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <span className="hidden sm:inline">Auto-refresh</span>
-                  <span className="sm:hidden">Auto</span>
-                </label>
               </div>
             </div>
           </div>

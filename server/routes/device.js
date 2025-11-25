@@ -86,35 +86,48 @@ router.post(
       .optional({ checkFalsy: true })
       .isMobilePhone('any')
       .withMessage('Violator phone must be a valid mobile number'),
-    body('latitude').optional({ nullable: true }).isFloat().withMessage('Latitude must be a number'),
-    body('longitude').optional({ nullable: true }).isFloat().withMessage('Longitude must be a number'),
-    body('send_sms')
-      .optional()
-      .isBoolean()
-      .withMessage('send_sms must be a boolean value')
-      .toBoolean(),
   ],
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation error',
-        details: errors.array(),
-      });
-    }
-
     try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: errors.array(),
+        });
+      }
+
       const firebaseService = getFirebaseService();
+
+      // Generate violation number
       const violationNumber = await generateViolationNumber();
 
+      // Calculate due date (30 days from now)
       const dueDate = new Date();
       dueDate.setDate(dueDate.getDate() + 30);
 
+      // Check if violator is a repeat offender by looking for existing violations
+      // with the same license number
+      let isRepeatOffender = false;
+      let previousViolationsCount = 0;
+      
+      if (req.body.violator_license) {
+        // Find existing violations with the same license number
+        const existingViolations = await firebaseService.getViolations({
+          violator_license: req.body.violator_license
+        });
+        
+        if (existingViolations && existingViolations.length > 0) {
+          isRepeatOffender = true;
+          previousViolationsCount = existingViolations.length;
+        }
+      }
+
+      // Create violation payload
       const violationPayload = {
         violation_number: violationNumber,
-        enforcer_id: null,
-        recorded_by_device: req.device.id,
+        enforcer_id: null, // Device violations don't have enforcer_id
         violator_name: req.body.violator_name,
         violator_license: req.body.violator_license || '',
         violator_phone: req.body.violator_phone || '',
@@ -125,13 +138,12 @@ router.post(
         violation_type: req.body.violation_type,
         violation_description: req.body.violation_description || '',
         location: req.body.location,
-        latitude: req.body.latitude ?? null,
-        longitude: req.body.longitude ?? null,
         fine_amount: parseFloat(req.body.fine_amount),
         status: 'pending',
-        evidence_photos: Array.isArray(req.body.evidence_photos) ? req.body.evidence_photos : [],
         notes: req.body.notes || '',
         due_date: dueDate,
+        is_repeat_offender: isRepeatOffender,
+        previous_violations_count: previousViolationsCount,
         captured_at: req.body.captured_at
           ? new Date(req.body.captured_at)
           : req.body.datetime
@@ -150,36 +162,21 @@ router.post(
         {
           violation_number: violationNumber,
           violator_name: req.body.violator_name,
-          recorded_by_device: req.device.id,
+          violator_license: req.body.violator_license || '',
         },
         req
       );
-
-      let smsResult = null;
-      const shouldSendSms =
-        typeof req.body.send_sms === 'boolean'
-          ? req.body.send_sms
-          : req.body.send_sms === 'true';
-
-      if (shouldSendSms && violation.violator_phone) {
-        const smsMessage =
-          req.body.sms_message ||
-          `Traffic violation ${violationNumber} recorded. Fine amount: ${violation.fine_amount}. Please resolve within 30 days.`;
-
-        smsResult = await sendSMS(violation.violator_phone, smsMessage, violation.id);
-      }
 
       return res.status(201).json({
         success: true,
         data: violation,
         message: 'Violation recorded successfully',
-        sms: smsResult,
       });
     } catch (error) {
       console.error('Device violation creation error:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to record violation',
+        error: 'Failed to create violation record',
       });
     }
   }

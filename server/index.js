@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const cron = require('node-cron');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
@@ -14,6 +15,7 @@ const auditRoutes = require('./routes/audit');
 
 const { connectDB } = require('./config/database');
 const { errorHandler } = require('./middleware/errorHandler');
+const { sendPenaltyReminders } = require('./scripts/penaltyReminder');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -97,6 +99,27 @@ app.use(errorHandler);
 app.get('*', (req, res) => {
   res.sendFile('index.html', { root: 'public' });
 });
+
+// Schedule penalty reminder notifications to run daily at 9:00 AM
+// Only run in production or when explicitly enabled
+if (process.env.NODE_ENV === 'production' || process.env.ENABLE_PENALTY_REMINDERS === 'true') {
+  console.log('⏰ Scheduling daily penalty reminder notifications...');
+  
+  // Schedule to run daily at 9:00 AM
+  cron.schedule('0 9 * * *', async () => {
+    console.log('🔔 Running scheduled penalty reminder notifications...');
+    try {
+      const result = await sendPenaltyReminders();
+      console.log('🔔 Penalty reminder job completed:', result);
+    } catch (error) {
+      console.error('❌ Error in scheduled penalty reminder job:', error);
+    }
+  }, {
+    timezone: "Asia/Manila" // Set to Philippine timezone
+  });
+  
+  console.log('✅ Penalty reminder scheduler enabled');
+}
 
 // Start server
 const startServer = async () => {

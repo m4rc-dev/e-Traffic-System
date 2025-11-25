@@ -28,17 +28,21 @@ A centralized platform for managing traffic violation records captured by handhe
 - **Mobile Responsive**: Fully optimized for mobile devices and tablets
 
 ### SMS Notification Integration
+
 - **Automated Notifications**: Send violation notices via SMS gateway API
 - **Delivery Tracking**: Monitor SMS delivery status
 - **Configurable Messages**: Customizable SMS templates
+- **Penalty Reminders**: Automatic reminders for overdue violations (sent daily)
 
 ### Report Management
+
 - **Multiple Formats**: Generate reports in JSON and CSV formats
 - **Interactive Charts**: Visual data representation with Chart.js
 - **Export Capabilities**: Download reports for external use
 - **Performance Analytics**: Enforcer performance tracking
 
 ### Repeat Offenders Management
+
 - **Violator Tracking**: Identify violators with multiple offenses
 - **Advanced Filtering**: Filter by minimum violations (2+, 3+, 5+, 10+)
 - **Statistical Analysis**: View total repeat offenders, average violations, and maximum violations
@@ -50,6 +54,7 @@ A centralized platform for managing traffic violation records captured by handhe
 ## 🛠️ Technology Stack
 
 ### Frontend
+
 - **React.js 18**: Modern UI framework
 - **Tailwind CSS**: Utility-first CSS framework with mobile-first responsive design
 - **Chart.js**: Data visualization
@@ -59,6 +64,7 @@ A centralized platform for managing traffic violation records captured by handhe
 - **Recharts**: Advanced charting library for reports
 
 ### Backend
+
 - **Node.js**: JavaScript runtime
 - **Express.js**: Web framework
 - **Firebase Firestore**: NoSQL database (cloud-based)
@@ -66,155 +72,7 @@ A centralized platform for managing traffic violation records captured by handhe
 - **bcryptjs**: Password hashing
 - **Axios**: HTTP client
 
-### Communication
-- **HTTP/JSON**: IoT devices → Server communication
-- **SMS Gateway API**: Violation notifications
-- **RESTful API**: Standard API endpoints
-
-## 📋 Prerequisites
-
-Before running this application, make sure you have the following installed:
-
-- **Node.js** (v16 or higher)
-- **Firebase Project**: Create a Firebase project with Firestore enabled
-- **npm** or **yarn**
-
-## 🚀 Installation & Setup
-
-### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
-cd e-traffic-system
-```
-
-### 2. Install Dependencies
-
-```bash
-# Install root dependencies
-npm install
-
-# Install all dependencies (root, server, and client)
-npm run install-all
-```
-
-### 3. Firebase Setup
-
-1. **Create Firebase Project**
-   - Go to [Firebase Console](https://console.firebase.google.com/)
-   - Create a new project
-   - Enable Firestore Database
-
-2. **Configure Environment Variables**
-   ```bash
-   # Copy the environment template
-   cp server/env.firebase.example server/.env
-   
-   # Edit the .env file with your Firebase credentials
-   nano server/.env
-   ```
-
-3. **Run Database Setup**
-   ```bash
-   npm run setup-firebase
-   ```
-
-### 4. Configure Environment Variables
-
-Create a `.env` file in the `server` directory using the provided template:
-
-```bash
-# Copy the environment template
-cp server/env.example server/.env
-```
-
-Edit the `.env` file with your specific configuration values. See `server/env.example` for all required environment variables.
-
-### 5. Start the Application
-
-```bash
-# Start both frontend and backend in development mode
-npm run dev
-
-# Or start them separately:
-npm run server  # Backend only
-npm run client  # Frontend only
-```
-
-The application will be available at:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:5000
-
-## 🔐 Authentication
-
-The system uses JWT-based authentication with role-based access control. Default admin credentials are created during the initial database setup. Please refer to the environment configuration for authentication details.
-
-## 📱 IoT Device Integration
-
-### API Endpoints for IoT Devices
-
-IoT devices should use the following endpoints for data transmission:
-
-#### Authentication
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "your_enforcer_email",
-  "password": "your_password"
-}
-```
-
-#### Create Violation
-```http
-POST /api/violations
-Authorization: Bearer <token>
-Content-Type: application/json
-
-{
-  "violator_name": "Violator Name",
-  "violator_license": "License Number",
-  "violator_phone": "Phone Number",
-  "violator_address": "Address",
-  "vehicle_plate": "Plate Number",
-  "vehicle_model": "Vehicle Model",
-  "vehicle_color": "Vehicle Color",
-  "violation_type": "Violation Type",
-  "violation_description": "Description",
-  "location": "Location",
-  "latitude": 0.0,
-  "longitude": 0.0,
-  "fine_amount": 0.00,
-  "evidence_photos": ["base64_encoded_image"],
-  "notes": "Additional notes"
-}
-```
-
-### Sample IoT Device Code (JavaScript)
-
-```javascript
-const createViolation = async (violationData) => {
-  try {
-    const response = await fetch('http://your-server:5000/api/violations', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify(violationData)
-    });
-    
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error creating violation:', error);
-    throw error;
-  }
-};
-```
-
-## 📊 API Documentation
+## 📋 API Endpoints
 
 ### Authentication Endpoints
 
@@ -229,14 +87,13 @@ const createViolation = async (violationData) => {
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/dashboard` | Get dashboard statistics |
-| GET | `/api/admin/enforcers` | Get all enforcers |
-| POST | `/api/admin/enforcers` | Create new enforcer |
-| PUT | `/api/admin/enforcers/:id` | Update enforcer |
-| DELETE | `/api/admin/enforcers/:id` | Delete enforcer |
-| GET | `/api/admin/repeat-offenders` | Get repeat offenders data |
+| GET | `/api/admin/users` | Get all users |
+| POST | `/api/admin/users` | Create new user |
+| PUT | `/api/admin/users/:id` | Update user |
+| DELETE | `/api/admin/users/:id` | Delete user |
 | GET | `/api/admin/settings` | Get system settings |
 | PUT | `/api/admin/settings` | Update system settings |
+| GET | `/api/admin/dashboard` | Get dashboard data |
 
 ### Violations Endpoints
 
@@ -273,6 +130,14 @@ Configure system settings through the admin dashboard:
 - **Max Photos**: Maximum photos per violation
 - **System Name**: Display name for the system
 - **Contact Email**: System contact email
+
+### Penalty Reminder Notifications
+
+The system automatically sends penalty reminders for overdue violations:
+
+- **Schedule**: Runs daily at 9:00 AM (Philippine Time)
+- **Trigger**: Enabled in production or when `ENABLE_PENALTY_REMINDERS=true`
+- **Manual Execution**: Run `npm run send-penalty-reminders` to send reminders manually
 
 ## 🚀 Deployment
 

@@ -1,60 +1,88 @@
 const axios = require('axios');
-const { query } = require('../config/database');
+const { getFirebaseService } = require('../config/database');
+
+// Function to format phone number for iprogsms.com
+// iprogsms.com accepts phone numbers in local format (09xxxxxxxxx) or international format (+639xxxxxxxxx)
+const formatPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return null;
+  
+  // Remove all non-digit characters except +
+  let cleaned = phoneNumber.replace(/[^\d+]/g, '');
+  
+  // Handle different phone number formats
+  if (cleaned.startsWith('+63')) {
+    // Already in correct international format, convert to local format for iprogsms
+    cleaned = '0' + cleaned.substring(3);
+  } else if (cleaned.startsWith('63')) {
+    // International format without +
+    cleaned = '0' + cleaned.substring(2);
+  } else if (cleaned.startsWith('9') && cleaned.length === 10) {
+    // Local format without leading 0
+    cleaned = '0' + cleaned;
+  }
+  // If it already starts with 0 and is 11 digits, keep as is
+  
+  // Validate that it's now in correct local format (09xxxxxxxxx)
+  if (/^09\d{9}$/.test(cleaned)) {
+    return cleaned;
+  }
+  
+  return null;
+};
 
 const sendSMS = async (phoneNumber, message, violationId = null) => {
   try {
+    const firebaseService = getFirebaseService();
+    
     // Check if SMS is enabled in system settings
-    const [smsSetting] = await query(
-      'SELECT setting_value FROM system_settings WHERE setting_key = "sms_enabled"'
-    );
+    const smsSetting = await firebaseService.findSettingByKey('sms_enabled');
 
     if (!smsSetting || smsSetting.setting_value !== 'true') {
       console.log('SMS notifications are disabled');
       return { success: false, message: 'SMS notifications are disabled' };
     }
 
-    // Get SMS configuration
-    const apiKey = process.env.SMS_API_KEY;
-    const apiUrl = process.env.SMS_API_URL;
-    const senderId = process.env.SMS_SENDER_ID || 'E_TRAFFIC';
-
-    if (!apiKey || !apiUrl) {
-      console.error('SMS configuration missing');
+    // Get SMS configuration for iprogsms.com
+    const apiToken = process.env.IPROGSMS_API_TOKEN || '1e285b5aa3b0e31fce7f7a40dc69a5789a1f43a1'; // Default to your provided API token
+    const apiUrl = 'https://www.iprogsms.com/api/v1/sms_messages';
+    
+    if (!apiToken) {
+      console.error('SMS configuration missing: API token required');
       return { success: false, message: 'SMS configuration missing' };
     }
 
-    // Prepare SMS payload (adjust based on your SMS gateway provider)
+    // Format phone number
+    const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+    if (!formattedPhoneNumber) {
+      return { success: false, message: 'Invalid phone number format' };
+    }
+
+    // Prepare SMS payload for iprogsms.com
     const smsPayload = {
-      api_key: apiKey,
-      to: phoneNumber,
-      message: message,
-      sender_id: senderId,
-      // Add any other required fields for your SMS gateway
+      api_token: apiToken,
+      phone_number: formattedPhoneNumber,
+      message: message
     };
 
-    // Send SMS
+    // Send SMS to iprogsms.com
     const response = await axios.post(apiUrl, smsPayload, {
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       timeout: 10000 // 10 second timeout
     });
 
     // Log SMS attempt
-    await query(`
-      INSERT INTO sms_logs (violation_id, phone_number, message, status, api_response)
-      VALUES (?, ?, ?, ?, ?)
-    `, [
-      violationId,
-      phoneNumber,
-      message,
-      response.data.success ? 'sent' : 'failed',
-      JSON.stringify(response.data)
-    ]);
+    await firebaseService.createSmsLog({
+      violation_id: violationId,
+      phone_number: formattedPhoneNumber,
+      message: message,
+      status: response.data.status === 200 ? 'sent' : 'failed',
+      api_response: JSON.stringify(response.data)
+    });
 
-    if (response.data.success) {
-      console.log(`SMS sent successfully to ${phoneNumber}`);
+    if (response.data.status === 200) {
+      console.log(`SMS sent successfully to ${formattedPhoneNumber}`);
       return { success: true, message: 'SMS sent successfully' };
     } else {
       console.error('SMS sending failed:', response.data);
@@ -66,16 +94,19 @@ const sendSMS = async (phoneNumber, message, violationId = null) => {
 
     // Log failed SMS attempt
     try {
-      await query(`
-        INSERT INTO sms_logs (violation_id, phone_number, message, status, api_response)
-        VALUES (?, ?, ?, ?, ?)
-      `, [
-        violationId,
-        phoneNumber,
-        message,
-        'failed',
-        JSON.stringify({ error: error.message })
-      ]);
+      const firebaseService = getFirebaseService();
+      
+      await firebaseService.createSmsLog({
+        violation_id: violationId,
+        phone_number: phoneNumber || 'unknown',
+        message: message || 'unknown',
+        status: 'failed',
+        api_response: JSON.stringify({ 
+          error: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        })
+      });
     } catch (logError) {
       console.error('Failed to log SMS error:', logError);
     }
@@ -91,49 +122,37 @@ const getSMSLogs = async (filters = {}) => {
   try {
     const { page = 1, limit = 10, status = '', phone_number = '' } = filters;
     const offset = (page - 1) * limit;
+    
+    const firebaseService = getFirebaseService();
 
-    let whereClause = 'WHERE 1=1';
-    let params = [];
-
+    // Build conditions for Firebase
+    const conditions = {};
+    
     if (status) {
-      whereClause += ' AND status = ?';
-      params.push(status);
+      conditions.status = status;
     }
-
+    
     if (phone_number) {
-      whereClause += ' AND phone_number LIKE ?';
-      params.push(`%${phone_number}%`);
+      conditions.phone_number = phone_number;
     }
 
     // Get SMS logs
-    const logs = await query(`
-      SELECT 
-        sl.*,
-        v.violation_number,
-        v.violator_name
-      FROM sms_logs sl
-      LEFT JOIN violations v ON sl.violation_id = v.id
-      ${whereClause}
-      ORDER BY sl.sent_at DESC
-      LIMIT ? OFFSET ?
-    `, [...params, parseInt(limit), offset]);
+    const logs = await firebaseService.getSmsLogs(conditions, { 
+      offset: offset,
+      limit: parseInt(limit)
+    });
 
     // Get total count
-    const [totalCount] = await query(`
-      SELECT COUNT(*) as count 
-      FROM sms_logs sl
-      LEFT JOIN violations v ON sl.violation_id = v.id
-      ${whereClause}
-    `, params);
-
+    const totalLogs = await firebaseService.count('sms_logs', conditions);
+    
     return {
       success: true,
       data: {
         logs,
         pagination: {
           current: parseInt(page),
-          total: Math.ceil(totalCount.count / limit),
-          totalRecords: totalCount.count
+          total: Math.ceil(totalLogs / limit),
+          totalRecords: totalLogs
         }
       }
     };
@@ -146,31 +165,32 @@ const getSMSLogs = async (filters = {}) => {
 
 const getSMSStats = async () => {
   try {
+    const firebaseService = getFirebaseService();
+    
     // Get total SMS sent
-    const [totalSMS] = await query('SELECT COUNT(*) as count FROM sms_logs');
+    const totalSMS = await firebaseService.count('sms_logs');
     
     // Get SMS by status
-    const smsByStatus = await query(`
-      SELECT status, COUNT(*) as count 
-      FROM sms_logs 
-      GROUP BY status
-    `);
+    const allLogs = await firebaseService.getSmsLogs({}, { limit: 1000 });
+    const smsByStatusObj = {};
+    allLogs.forEach(log => {
+      const status = log.status || 'unknown';
+      smsByStatusObj[status] = (smsByStatusObj[status] || 0) + 1;
+    });
     
-    // Get SMS by month (last 6 months)
-    const smsByMonth = await query(`
-      SELECT 
-        DATE_FORMAT(sent_at, '%Y-%m') as month,
-        COUNT(*) as count
-      FROM sms_logs 
-      WHERE sent_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
-      GROUP BY DATE_FORMAT(sent_at, '%Y-%m')
-      ORDER BY month DESC
-    `);
+    const smsByStatus = Object.entries(smsByStatusObj).map(([status, count]) => ({
+      status,
+      count
+    }));
+    
+    // For monthly stats, we would need to implement a different approach in Firebase
+    // as it doesn't have built-in date grouping like SQL
+    const smsByMonth = [];
 
     return {
       success: true,
       data: {
-        totalSMS: totalSMS.count,
+        totalSMS: totalSMS,
         smsByStatus,
         smsByMonth
       }

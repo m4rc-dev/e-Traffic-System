@@ -9,7 +9,8 @@
     "setup-db": "node scripts/setupDatabase.js",
     "setup-firebase": "node scripts/setupFirebaseDatabase.js",
     "migrate-to-firebase": "node scripts/migrateToFirebase.js",
-    "add-test-violations": "node scripts/addTestViolations.js"
+    "add-test-violations": "node scripts/addTestViolations.js",
+    "send-penalty-reminders": "node scripts/penaltyReminder.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
@@ -25,6 +26,7 @@
     "moment": "^2.29.4",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.6.5",
+    "node-cron": "^4.2.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

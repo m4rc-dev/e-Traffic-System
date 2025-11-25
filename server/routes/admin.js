@@ -77,14 +77,49 @@ router.get('/dashboard', async (req, res) => {
     const paidViolations = allViolations.filter(v => v.status === 'paid');
     const totalFines = paidViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
     
-    // Get recent violations (last 7 days)
+    // Get recent violations (last 7 days) with enforcer details
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentViolations = allViolations.filter(violation => {
+    let recentViolations = allViolations.filter(violation => {
       if (!violation.created_at) return false;
       const violationDate = new Date(violation.created_at.toDate ? violation.created_at.toDate() : violation.created_at);
       return violationDate >= sevenDaysAgo;
     });
+    
+    // Sort recent violations by date (newest first) and limit to 10
+    recentViolations.sort((a, b) => {
+      const aDate = new Date(a.created_at.toDate ? a.created_at.toDate() : a.created_at);
+      const bDate = new Date(b.created_at.toDate ? b.created_at.toDate() : b.created_at);
+      return bDate - aDate;
+    });
+    
+    // Get enforcer details for recent violations
+    const recentViolationsWithEnforcer = await Promise.all(
+      recentViolations.slice(0, 10).map(async (violation) => {
+        if (violation.enforcer_id) {
+          try {
+            const enforcer = await firebaseService.findById('users', violation.enforcer_id);
+            return {
+              ...violation,
+              enforcer_name: enforcer ? enforcer.full_name : 'Unknown',
+              enforcer_badge: enforcer ? enforcer.badge_number : 'Unknown'
+            };
+          } catch (error) {
+            console.error(`Error fetching enforcer for violation ${violation.id}:`, error);
+            return {
+              ...violation,
+              enforcer_name: 'Unknown',
+              enforcer_badge: 'Unknown'
+            };
+          }
+        }
+        return {
+          ...violation,
+          enforcer_name: 'Unknown',
+          enforcer_badge: 'Unknown'
+        };
+      })
+    );
     
     // Get violations by enforcer
     const violationsByEnforcer = {};
@@ -116,7 +151,7 @@ router.get('/dashboard', async (req, res) => {
         totalEnforcers,
         activeEnforcers,
         totalFines,
-        recentViolations: recentViolations.slice(0, 10), // Return array of recent violations, limited to 10
+        recentViolations: recentViolationsWithEnforcer, // Return array of recent violations with enforcer details
         violationsByEnforcer: topEnforcers.slice(0, 10)
       }
     });
@@ -135,14 +170,16 @@ router.get('/dashboard', async (req, res) => {
 // @access  Private (Admin only)
 router.get('/repeat-offenders', async (req, res) => {
   try {
+    const { min_violations = 2 } = req.query;
     const firebaseService = getFirebaseService();
     
     // Get all violations
-    const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
+    const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
     
     // Group by violator (using license plate as identifier)
     const violatorGroups = {};
     allViolations.forEach(violation => {
+      // Use violator license as primary identifier, fallback to other fields
       const key = violation.violator_license || violation.vehicle_plate || violation.violator_name;
       if (key) {
         if (!violatorGroups[key]) {
@@ -152,24 +189,69 @@ router.get('/repeat-offenders', async (req, res) => {
       }
     });
     
-    // Find repeat offenders (2 or more violations)
+    // Find repeat offenders (based on min_violations parameter, default 2)
     const repeatOffenders = Object.entries(violatorGroups)
-      .filter(([key, violations]) => violations.length >= 2)
-      .map(([key, violations]) => ({
-        identifier: key,
-        violation_count: violations.length,
-        total_fine: violations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
-        last_violation: violations.sort((a, b) => 
-          new Date(b.created_at.toDate ? b.created_at.toDate() : b.created_at) - 
-          new Date(a.created_at.toDate ? a.created_at.toDate() : a.created_at)
-        )[0],
-        violations: violations.slice(0, 5) // Show last 5 violations
-      }))
-      .sort((a, b) => b.violation_count - a.violation_count);
+      .filter(([key, violations]) => violations.length >= parseInt(min_violations))
+      .map(([key, violations]) => {
+        // Sort violations by date (newest first)
+        violations.sort((a, b) => {
+          const aDate = new Date(a.created_at?.toDate ? a.created_at.toDate() : a.created_at);
+          const bDate = new Date(b.created_at?.toDate ? b.created_at.toDate() : b.created_at);
+          return bDate - aDate;
+        });
+        
+        // Get first and last violation details
+        const firstViolation = violations[violations.length - 1];
+        const lastViolation = violations[0];
+        
+        // Calculate financial statistics
+        const totalFines = violations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+        const paidFines = violations
+          .filter(v => v.status === 'paid')
+          .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+        const pendingFines = violations
+          .filter(v => v.status === 'pending' || v.status === 'issued')
+          .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+        
+        return {
+          identifier: key,
+          violator_name: lastViolation.violator_name,
+          violator_license: lastViolation.violator_license,
+          violator_phone: lastViolation.violator_phone,
+          total_violations: violations.length,
+          total_fines: totalFines,
+          paid_fines: paidFines,
+          pending_fines: pendingFines,
+          first_violation_date: firstViolation.created_at,
+          first_violation_type: firstViolation.violation_type,
+          last_violation_date: lastViolation.created_at,
+          last_violation_type: lastViolation.violation_type,
+          violations: violations.slice(0, 5) // Show last 5 violations
+        };
+      })
+      .sort((a, b) => b.total_violations - a.total_violations);
+    
+    // Calculate statistics
+    const totalRepeatOffenders = repeatOffenders.length;
+    const avgViolationsPerOffender = totalRepeatOffenders > 0 
+      ? repeatOffenders.reduce((sum, offender) => sum + offender.total_violations, 0) / totalRepeatOffenders
+      : 0;
+    const maxViolations = totalRepeatOffenders > 0
+      ? Math.max(...repeatOffenders.map(offender => offender.total_violations))
+      : 0;
+    
+    const statistics = {
+      total_repeat_offenders: totalRepeatOffenders,
+      avg_violations_per_offender: avgViolationsPerOffender.toFixed(1),
+      max_violations: maxViolations
+    };
     
     res.status(200).json({
       success: true,
-      data: repeatOffenders
+      data: {
+        repeatOffenders,
+        statistics
+      }
     });
     
   } catch (error) {

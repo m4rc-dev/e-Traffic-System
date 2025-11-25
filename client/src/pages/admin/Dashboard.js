@@ -728,6 +728,9 @@ const AdminDashboard = () => {
                     Enforcer
                   </th>
                   <th className="mobile-table th">
+                    Location
+                  </th>
+                  <th className="mobile-table th">
                     Date & Time
                   </th>
                 </tr>
@@ -768,6 +771,10 @@ const AdminDashboard = () => {
                     </td>
                     <td className="mobile-table td">
                       <div className="responsive-text-sm text-gray-900">{violation.enforcer_name}</div>
+                      <div className="text-xs text-gray-500">{violation.enforcer_badge}</div>
+                    </td>
+                    <td className="mobile-table td">
+                      <div className="responsive-text-sm text-gray-900">{violation.location}</div>
                     </td>
                     <td className="mobile-table td">
                       <div>
