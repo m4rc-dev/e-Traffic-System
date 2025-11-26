@@ -121,18 +121,13 @@ const Violations = () => {
       
       // Check if we should send SMS (status was updated to 'paid' and sendSMS was checked)
       if (variables.data.status === 'paid' && variables.data.sendSMS) {
-        const message = `Good day, Ma'am/Sir.\n\n` +
-          `This is an official confirmation from e-Traffic.\n\n` +
-          `We have received your payment for the following violation:\n\n` +
-          `Violator Name: ${variables.data.violatorName}\n` +
-          `Plate Number: ${variables.data.vehiclePlate}\n` +
-          `Violation Type: ${variables.data.violationType}\n` +
-          `Fine Amount Paid: ₱${variables.data.fineAmount}\n` +
-          `Date of Payment: ${new Date().toLocaleDateString()}\n` +
-          `Enforcer Name: ${variables.data.enforcerName}\n\n` +
-          `Your record has been updated, and the case is now marked as PAID in the Cebu City Transportation Office (CCTO).\n\n` +
-          `Thank you for complying with the traffic regulations and for helping maintain safety and order on our roads.\n` +
-          `Have a safe day ahead.`;
+        const message = `Traffic Violation Payment Confirmed\n\n` +
+          `Violation: ${variables.data.violationType}\n` +
+          `Plate: ${variables.data.vehiclePlate}\n` +
+          `Paid: ₱${variables.data.fineAmount}\n` +
+          `Date: ${new Date().toLocaleDateString()}\n\n` +
+          `Record updated. Thank you.\n` +
+          `Ref: ${variables.data.violationNumber}`;
         sendSMSMutation.mutate({ 
           id: variables.id, 
           data: { message } 

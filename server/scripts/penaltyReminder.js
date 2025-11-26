@@ -37,27 +37,26 @@ async function sendPenaltyReminders() {
         dueDate = new Date(violation.due_date);
       }
       
-      // Set time to start of day for comparison
+      // Reset time portion for comparison
       dueDate.setHours(0, 0, 0, 0);
       
-      // Check if due date is before today (overdue)
-      return dueDate < today;
+      // Calculate days overdue (due date should be 7 days before today)
+      const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+      
+      // Only send reminders for violations that are more than 7 days overdue
+      return daysOverdue > 7;
     });
     
-    console.log(`📊 Found ${overdueViolations.length} overdue violations`);
-    
-    let remindersSent = 0;
+    console.log(`📬 Found ${overdueViolations.length} overdue violations`);
     
     // Send reminders for each overdue violation
+    let remindersSent = 0;
     for (const violation of overdueViolations) {
       try {
         // Skip if no phone number
-        if (!violation.violator_phone) {
-          console.log(`⏭️ Skipping violation ${violation.violation_number} - no phone number`);
-          continue;
-        }
+        if (!violation.violator_phone) continue;
         
-        // Calculate days overdue
+        // Convert due_date to Date object
         let dueDate;
         if (typeof violation.due_date === 'string') {
           dueDate = new Date(violation.due_date);
@@ -67,23 +66,14 @@ async function sendPenaltyReminders() {
           dueDate = new Date(violation.due_date);
         }
         
-        dueDate.setHours(0, 0, 0, 0);
-        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-        
-        // Create reminder message using the provided template
-        // We need to be careful about message length to avoid spam filters
-        const message = `Good day, Ma'am/Sir.\n\n` +
-          `This is an official reminder from e-Traffic.\n\n` +
-          `Our records show that the following traffic violation has exceeded the allowed 7-day payment period:\n\n` +
-          `Violation Details:\n\n` +
-          `Violator Name: ${violation.violator_name}\n` +
-          `Plate Number: ${violation.vehicle_plate}\n` +
-          `Violation Type: ${violation.violation_type}\n` +
-          `Fine Amount: ₱${violation.fine_amount}\n` +
-          `Location: ${violation.location}\n` +
-          `Date of Violation: ${dueDate.toLocaleDateString()}\n\n` +
-          `Please settle your penalty at the Cebu City Transportation Office to avoid further penalties.\n\n` +
-          `Thank you for your cooperation.`;
+        // Create simplified penalty reminder message to avoid spam filters
+        const message = `Traffic Violation Reminder\n\n` +
+          `Violation: ${violation.violation_type}\n` +
+          `Plate: ${violation.vehicle_plate}\n` +
+          `Fine: ₱${violation.fine_amount}\n` +
+          `Due: ${dueDate.toLocaleDateString()}\n\n` +
+          `Please settle at city transport office to avoid penalties.\n` +
+          `Ref: ${violation.violation_number}`;
         
         // Send SMS
         console.log(`📱 Sending penalty reminder for violation ${violation.violation_number} to ${violation.violator_phone}`);

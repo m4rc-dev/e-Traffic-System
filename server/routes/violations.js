@@ -337,19 +337,14 @@ router.put('/:id', [
         if (daysOverdue > 7) {
           const { sendSMS } = require('../services/smsService');
           
-          // Create penalty reminder message
-          const message = `Good day, Ma'am/Sir.\n\n` +
-            `This is an official reminder from e-Traffic.\n\n` +
-            `Our records show that the following traffic violation has exceeded the allowed 7-day payment period:\n\n` +
-            `Violation Details:\n\n` +
-            `Violator Name: ${currentViolation.violator_name}\n` +
-            `Plate Number: ${currentViolation.vehicle_plate}\n` +
-            `Violation Type: ${currentViolation.violation_type}\n` +
-            `Fine Amount: ₱${currentViolation.fine_amount}\n` +
-            `Location: ${currentViolation.location}\n` +
-            `Date of Violation: ${dueDate.toLocaleDateString()}\n\n` +
-            `Please settle your penalty at the Cebu City Transportation Office to avoid further penalties.\n\n` +
-            `Thank you for your cooperation.`;
+          // Create penalty reminder message (simplified to avoid spam filters)
+          const message = `Traffic Violation Reminder\n\n` +
+            `Violation: ${currentViolation.violation_type}\n` +
+            `Plate: ${currentViolation.vehicle_plate}\n` +
+            `Fine: ₱${currentViolation.fine_amount}\n` +
+            `Due: ${dueDate.toLocaleDateString()}\n\n` +
+            `Please settle at city transport office to avoid penalties.\n` +
+            `Ref: ${currentViolation.violation_number}`;
           
           // Send SMS in the background (don't wait for result)
           sendSMS(currentViolation.violator_phone, message, id)
@@ -378,19 +373,14 @@ router.put('/:id', [
           currentViolation.due_date.toDate() : 
           new Date(currentViolation.due_date);
         
-        // Create penalty reminder message
-        const message = `Good day, Ma'am/Sir.\n\n` +
-          `This is an official reminder from e-Traffic.\n\n` +
-          `Our records show that the following traffic violation has exceeded the allowed 7-day payment period:\n\n` +
-          `Violation Details:\n\n` +
-          `Violator Name: ${currentViolation.violator_name}\n` +
-          `Plate Number: ${currentViolation.vehicle_plate}\n` +
-          `Violation Type: ${currentViolation.violation_type}\n` +
-          `Fine Amount: ₱${currentViolation.fine_amount}\n` +
-          `Location: ${currentViolation.location}\n` +
-          `Date of Violation: ${dueDate.toLocaleDateString()}\n\n` +
-          `Please settle your penalty at the Cebu City Transportation Office to avoid further penalties.\n\n` +
-          `Thank you for your cooperation.`;
+        // Create penalty reminder message (simplified to avoid spam filters)
+        const message = `Traffic Violation Reminder\n\n` +
+          `Violation: ${currentViolation.violation_type}\n` +
+          `Plate: ${currentViolation.vehicle_plate}\n` +
+          `Fine: ₱${currentViolation.fine_amount}\n` +
+          `Due: ${dueDate.toLocaleDateString()}\n\n` +
+          `Please settle at city transport office to avoid penalties.\n` +
+          `Ref: ${currentViolation.violation_number}`;
         
         // Send SMS in the background (don't wait for result)
         sendSMS(currentViolation.violator_phone, message, id)
