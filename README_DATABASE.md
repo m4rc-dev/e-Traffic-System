@@ -78,6 +78,8 @@ To view the interactive Entity Relationship Diagram:
 • **Core Business Logic**: Central to traffic management system
 • **Legal Compliance**: Maintains official violation records
 • **Financial Tracking**: Manages fine collection
+• **Evidence Management**: Stores photos and documentation
+• **Geographic Data**: Enables location-based reporting
 • **Status Workflow**: Tracks violation lifecycle
 
 ---
@@ -214,7 +216,7 @@ To view the interactive Entity Relationship Diagram:
 
 ### Data Types:
 - **DECIMAL**: Monetary values (precision maintained)
-- **JSON**: Flexible data storage (responses)
+- **JSON**: Flexible data storage (photos, responses)
 - **ENUM**: Controlled value sets (status fields)
 - **TIMESTAMP**: Automatic date/time management
 
