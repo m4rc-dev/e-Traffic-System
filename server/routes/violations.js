@@ -338,7 +338,8 @@ router.put('/:id', [
           const { sendSMS } = require('../services/smsService');
           
           // Create penalty reminder message (simplified to avoid spam filters)
-          const message = `Traffic Violation Reminder\n\n` +
+          const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+            `Traffic Violation Reminder\n\n` +
             `Violation: ${currentViolation.violation_type}\n` +
             `Plate: ${currentViolation.vehicle_plate}\n` +
             `Fine: ₱${currentViolation.fine_amount}\n` +
@@ -374,7 +375,8 @@ router.put('/:id', [
           new Date(currentViolation.due_date);
         
         // Create penalty reminder message (simplified to avoid spam filters)
-        const message = `Traffic Violation Reminder\n\n` +
+        const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+          `Traffic Violation Reminder\n\n` +
           `Violation: ${currentViolation.violation_type}\n` +
           `Plate: ${currentViolation.vehicle_plate}\n` +
           `Fine: ₱${currentViolation.fine_amount}\n` +

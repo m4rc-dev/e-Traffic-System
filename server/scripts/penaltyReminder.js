@@ -67,7 +67,8 @@ async function sendPenaltyReminders() {
         }
         
         // Create simplified penalty reminder message to avoid spam filters
-        const message = `Traffic Violation Reminder\n\n` +
+        const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+          `Traffic Violation Reminder\n\n` +
           `Violation: ${violation.violation_type}\n` +
           `Plate: ${violation.vehicle_plate}\n` +
           `Fine: ₱${violation.fine_amount}\n` +
