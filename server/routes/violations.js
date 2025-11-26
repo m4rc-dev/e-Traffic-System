@@ -337,12 +337,12 @@ router.put('/:id', [
         if (daysOverdue > 7) {
           const { sendSMS } = require('../services/smsService');
           
-          // Create penalty reminder message (simplified to avoid spam filters)
-          const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+          // Create penalty reminder message (simplified to avoid spam filters and encoding issues)
+          const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
             `Traffic Violation Reminder\n\n` +
             `Violation: ${currentViolation.violation_type}\n` +
             `Plate: ${currentViolation.vehicle_plate}\n` +
-            `Fine: ₱${currentViolation.fine_amount}\n` +
+            `Fine: PHP${currentViolation.fine_amount}\n` +
             `Due: ${dueDate.toLocaleDateString()}\n\n` +
             `Please settle at city transport office to avoid penalties.\n` +
             `Ref: ${currentViolation.violation_number}`;
@@ -374,12 +374,12 @@ router.put('/:id', [
           currentViolation.due_date.toDate() : 
           new Date(currentViolation.due_date);
         
-        // Create penalty reminder message (simplified to avoid spam filters)
-        const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+        // Create penalty reminder message (simplified to avoid spam filters and encoding issues)
+        const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
           `Traffic Violation Reminder\n\n` +
           `Violation: ${currentViolation.violation_type}\n` +
           `Plate: ${currentViolation.vehicle_plate}\n` +
-          `Fine: ₱${currentViolation.fine_amount}\n` +
+          `Fine: PHP${currentViolation.fine_amount}\n` +
           `Due: ${dueDate.toLocaleDateString()}\n\n` +
           `Please settle at city transport office to avoid penalties.\n` +
           `Ref: ${currentViolation.violation_number}`;

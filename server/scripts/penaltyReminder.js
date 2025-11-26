@@ -66,12 +66,12 @@ async function sendPenaltyReminders() {
           dueDate = new Date(violation.due_date);
         }
         
-        // Create simplified penalty reminder message to avoid spam filters
-        const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+        // Create simplified penalty reminder message to avoid spam filters and encoding issues
+        const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
           `Traffic Violation Reminder\n\n` +
           `Violation: ${violation.violation_type}\n` +
           `Plate: ${violation.vehicle_plate}\n` +
-          `Fine: ₱${violation.fine_amount}\n` +
+          `Fine: PHP${violation.fine_amount}\n` +
           `Due: ${dueDate.toLocaleDateString()}\n\n` +
           `Please settle at city transport office to avoid penalties.\n` +
           `Ref: ${violation.violation_number}`;

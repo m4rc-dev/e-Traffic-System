@@ -121,11 +121,11 @@ const Violations = () => {
       
       // Check if we should send SMS (status was updated to 'paid' and sendSMS was checked)
       if (variables.data.status === 'paid' && variables.data.sendSMS) {
-        const message = `Good day, Ma'am/Sir, this is e-Traffíc.\n\n` +
+        const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
           `Traffic Violation Payment Confirmed\n\n` +
           `Violation: ${variables.data.violationType}\n` +
           `Plate: ${variables.data.vehiclePlate}\n` +
-          `Paid: ₱${variables.data.fineAmount}\n` +
+          `Paid: PHP${variables.data.fineAmount}\n` +
           `Date: ${new Date().toLocaleDateString()}\n\n` +
           `Record updated. Thank you.\n` +
           `Ref: ${variables.data.violationNumber}`;
