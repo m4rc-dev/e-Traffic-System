@@ -16,20 +16,20 @@ To view the interactive Entity Relationship Diagram:
 ### 1. **users** Table
 **Purpose**: Central user management for administrators and traffic enforcers
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| id | INT | PK, AUTO_INCREMENT | Primary key |
-| username | VARCHAR(50) | UNIQUE, NOT NULL | Login username |
-| email | VARCHAR(100) | UNIQUE, NOT NULL | Email address |
-| password | VARCHAR(255) | NOT NULL | Hashed password |
-| role | ENUM | NOT NULL, DEFAULT 'enforcer' | 'admin' or 'enforcer' |
-| full_name | VARCHAR(100) | NOT NULL | Complete name |
-| badge_number | VARCHAR(20) | UNIQUE | Enforcer badge ID |
-| phone_number | VARCHAR(20) | | Contact number |
-| is_active | BOOLEAN | DEFAULT TRUE | Account status |
-| last_login | DATETIME | | Last login timestamp |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE | Last update time |
+| Field Name | Data Type | Length | Null | Description |
+|------------|-----------|--------|------|-------------|
+| id | INT |  | No | Primary key |
+| username | VARCHAR | 50 | No | Login username |
+| email | VARCHAR | 100 | No | Email address |
+| password | VARCHAR | 255 | No | Hashed password |
+| role | ENUM |  | No | 'admin' or 'enforcer' |
+| full_name | VARCHAR | 100 | No | Complete name |
+| badge_number | VARCHAR | 20 | Yes | Enforcer badge ID |
+| phone_number | VARCHAR | 20 | Yes | Contact number |
+| is_active | BOOLEAN |  | Yes | Account status |
+| last_login | DATETIME |  | Yes | Last login timestamp |
+| created_at | TIMESTAMP |  | No | Creation time |
+| updated_at | TIMESTAMP |  | No | Last update time |
 
 **Why Important:**
 • **Single Table Design**: Manages both admin and enforcer roles efficiently
@@ -43,29 +43,29 @@ To view the interactive Entity Relationship Diagram:
 ### 2. **violations** Table
 **Purpose**: Core business entity for traffic violation records
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| id | INT | PK, AUTO_INCREMENT | Primary key |
-| violation_number | VARCHAR(50) | UNIQUE, NOT NULL | Unique violation ID |
-| enforcer_id | INT | NOT NULL, FK | Issuing enforcer |
-| violator_name | VARCHAR(100) | NOT NULL | Violator's name |
-| violator_license | VARCHAR(50) | | Driver's license |
-| violator_phone | VARCHAR(20) | | Contact number |
-| violator_address | TEXT | | Home address |
-| vehicle_plate | VARCHAR(20) | | License plate |
-| vehicle_model | VARCHAR(100) | | Vehicle make/model |
-| vehicle_color | VARCHAR(50) | | Vehicle color |
-| violation_type | VARCHAR(100) | NOT NULL | Type of violation |
-| violation_description | TEXT | | Detailed description |
-| location | VARCHAR(255) | NOT NULL | Violation location |
-| fine_amount | DECIMAL(10,2) | NOT NULL | Penalty amount |
-| status | ENUM | DEFAULT 'pending' | Violation status |
-| notes | TEXT | | Additional notes |
-| issued_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Issue time |
-| due_date | DATE | | Payment deadline |
-| paid_at | TIMESTAMP | NULL | Payment time |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Creation time |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE | Last update |
+| Field Name | Data Type | Length | Null | Description |
+|------------|-----------|--------|------|-------------|
+| id | INT |  | No | Primary key |
+| violation_number | VARCHAR | 50 | No | Unique violation ID |
+| enforcer_id | INT |  | No | Issuing enforcer |
+| violator_name | VARCHAR | 100 | No | Violator's name |
+| violator_license | VARCHAR | 50 | Yes | Driver's license |
+| violator_phone | VARCHAR | 20 | Yes | Contact number |
+| violator_address | TEXT |  | Yes | Home address |
+| vehicle_plate | VARCHAR | 20 | Yes | License plate |
+| vehicle_model | VARCHAR | 100 | Yes | Vehicle make/model |
+| vehicle_color | VARCHAR | 50 | Yes | Vehicle color |
+| violation_type | VARCHAR | 100 | No | Type of violation |
+| violation_description | TEXT |  | Yes | Detailed description |
+| location | VARCHAR | 255 | No | Violation location |
+| fine_amount | DECIMAL | 10,2 | No | Penalty amount |
+| status | ENUM |  | Yes | Violation status |
+| notes | TEXT |  | Yes | Additional notes |
+| issued_at | TIMESTAMP |  | No | Issue time |
+| due_date | DATE |  | Yes | Payment deadline |
+| paid_at | TIMESTAMP |  | Yes | Payment time |
+| created_at | TIMESTAMP |  | No | Creation time |
+| updated_at | TIMESTAMP |  | No | Last update |
 
 **Status Values:**
 - `pending` - Newly created, not yet issued
@@ -87,16 +87,16 @@ To view the interactive Entity Relationship Diagram:
 ### 3. **sms_logs** Table
 **Purpose**: Tracks SMS notifications sent to violators
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| id | INT | PK, AUTO_INCREMENT | Primary key |
-| violation_id | INT | NOT NULL, FK | Related violation |
-| phone_number | VARCHAR(20) | NOT NULL | Recipient number |
-| message | TEXT | NOT NULL | SMS content |
-| status | ENUM | DEFAULT 'pending' | Delivery status |
-| api_response | JSON | | SMS service response |
-| sent_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Send time |
-| delivered_at | TIMESTAMP | NULL | Delivery time |
+| Field Name | Data Type | Length | Null | Description |
+|------------|-----------|--------|------|-------------|
+| id | INT |  | No | Primary key |
+| violation_id | INT |  | No | Related violation |
+| phone_number | VARCHAR | 20 | No | Recipient number |
+| message | TEXT |  | No | SMS content |
+| status | ENUM |  | Yes | Delivery status |
+| api_response | JSON |  | Yes | SMS service response |
+| sent_at | TIMESTAMP |  | No | Send time |
+| delivered_at | TIMESTAMP |  | Yes | Delivery time |
 
 **Status Values:**
 - `pending` - Queued for sending
@@ -116,18 +116,18 @@ To view the interactive Entity Relationship Diagram:
 ### 4. **audit_logs** Table
 **Purpose**: Comprehensive audit trail for security and compliance
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| id | INT | PK, AUTO_INCREMENT | Primary key |
-| user_id | INT | FK, NULL | User who performed action |
-| action | VARCHAR(100) | NOT NULL | Action type |
-| table_name | VARCHAR(50) | | Affected table |
-| record_id | INT | | Affected record ID |
-| old_values | JSON | | Values before change |
-| new_values | JSON | | Values after change |
-| ip_address | VARCHAR(45) | | User's IP address |
-| user_agent | TEXT | | Browser/client info |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Action time |
+| Field Name | Data Type | Length | Null | Description |
+|------------|-----------|--------|------|-------------|
+| id | INT |  | No | Primary key |
+| user_id | INT |  | Yes | User who performed action |
+| action | VARCHAR | 100 | No | Action type |
+| table_name | VARCHAR | 50 | Yes | Affected table |
+| record_id | INT |  | Yes | Affected record ID |
+| old_values | JSON |  | Yes | Values before change |
+| new_values | JSON |  | Yes | Values after change |
+| ip_address | VARCHAR | 45 | Yes | User's IP address |
+| user_agent | TEXT |  | Yes | Browser/client info |
+| created_at | TIMESTAMP |  | No | Action time |
 
 **Common Actions:**
 - `LOGIN_SUCCESS` - Successful login
@@ -153,13 +153,13 @@ To view the interactive Entity Relationship Diagram:
 ### 5. **system_settings** Table
 **Purpose**: Configuration management for system parameters
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| id | INT | PK, AUTO_INCREMENT | Primary key |
-| setting_key | VARCHAR(100) | UNIQUE, NOT NULL | Setting identifier |
-| setting_value | TEXT | | Configuration value |
-| description | TEXT | | Human-readable description |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP ON UPDATE | Last update |
+| Field Name | Data Type | Length | Null | Description |
+|------------|-----------|--------|------|-------------|
+| id | INT |  | No | Primary key |
+| setting_key | VARCHAR | 100 | No | Setting identifier |
+| setting_value | TEXT |  | Yes | Configuration value |
+| description | TEXT |  | Yes | Human-readable description |
+| updated_at | TIMESTAMP |  | No | Last update |
 
 **Example Settings:**
 - `sms_enabled` - Enable/disable SMS notifications
