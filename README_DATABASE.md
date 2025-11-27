@@ -18,18 +18,18 @@ To view the interactive Entity Relationship Diagram:
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT |  | No | Primary key |
+| id | INT | N/A | No | Primary key |
 | username | VARCHAR | 50 | No | Login username |
 | email | VARCHAR | 100 | No | Email address |
 | password | VARCHAR | 255 | No | Hashed password |
-| role | ENUM |  | No | 'admin' or 'enforcer' |
+| role | ENUM | N/A | No | 'admin' or 'enforcer' |
 | full_name | VARCHAR | 100 | No | Complete name |
 | badge_number | VARCHAR | 20 | Yes | Enforcer badge ID |
 | phone_number | VARCHAR | 20 | Yes | Contact number |
-| is_active | BOOLEAN |  | Yes | Account status |
-| last_login | DATETIME |  | Yes | Last login timestamp |
-| created_at | TIMESTAMP |  | No | Creation time |
-| updated_at | TIMESTAMP |  | No | Last update time |
+| is_active | BOOLEAN | N/A | Yes | Account status |
+| last_login | DATETIME | N/A | Yes | Last login timestamp |
+| created_at | TIMESTAMP | N/A | No | Creation time |
+| updated_at | TIMESTAMP | N/A | No | Last update time |
 
 **Why Important:**
 • **Single Table Design**: Manages both admin and enforcer roles efficiently
@@ -45,27 +45,27 @@ To view the interactive Entity Relationship Diagram:
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT |  | No | Primary key |
+| id | INT | N/A | No | Primary key |
 | violation_number | VARCHAR | 50 | No | Unique violation ID |
-| enforcer_id | INT |  | No | Issuing enforcer |
+| enforcer_id | INT | N/A | No | Issuing enforcer |
 | violator_name | VARCHAR | 100 | No | Violator's name |
 | violator_license | VARCHAR | 50 | Yes | Driver's license |
 | violator_phone | VARCHAR | 20 | Yes | Contact number |
-| violator_address | TEXT |  | Yes | Home address |
+| violator_address | TEXT | N/A | Yes | Home address |
 | vehicle_plate | VARCHAR | 20 | Yes | License plate |
 | vehicle_model | VARCHAR | 100 | Yes | Vehicle make/model |
 | vehicle_color | VARCHAR | 50 | Yes | Vehicle color |
 | violation_type | VARCHAR | 100 | No | Type of violation |
-| violation_description | TEXT |  | Yes | Detailed description |
+| violation_description | TEXT | N/A | Yes | Detailed description |
 | location | VARCHAR | 255 | No | Violation location |
 | fine_amount | DECIMAL | 10,2 | No | Penalty amount |
-| status | ENUM |  | Yes | Violation status |
-| notes | TEXT |  | Yes | Additional notes |
-| issued_at | TIMESTAMP |  | No | Issue time |
-| due_date | DATE |  | Yes | Payment deadline |
-| paid_at | TIMESTAMP |  | Yes | Payment time |
-| created_at | TIMESTAMP |  | No | Creation time |
-| updated_at | TIMESTAMP |  | No | Last update |
+| status | ENUM | N/A | Yes | Violation status |
+| notes | TEXT | N/A | Yes | Additional notes |
+| issued_at | TIMESTAMP | N/A | No | Issue time |
+| due_date | DATE | N/A | Yes | Payment deadline |
+| paid_at | TIMESTAMP | N/A | Yes | Payment time |
+| created_at | TIMESTAMP | N/A | No | Creation time |
+| updated_at | TIMESTAMP | N/A | No | Last update |
 
 **Status Values:**
 - `pending` - Newly created, not yet issued
@@ -89,14 +89,14 @@ To view the interactive Entity Relationship Diagram:
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT |  | No | Primary key |
-| violation_id | INT |  | No | Related violation |
+| id | INT | N/A | No | Primary key |
+| violation_id | INT | N/A | No | Related violation |
 | phone_number | VARCHAR | 20 | No | Recipient number |
-| message | TEXT |  | No | SMS content |
-| status | ENUM |  | Yes | Delivery status |
-| api_response | JSON |  | Yes | SMS service response |
-| sent_at | TIMESTAMP |  | No | Send time |
-| delivered_at | TIMESTAMP |  | Yes | Delivery time |
+| message | TEXT | N/A | No | SMS content |
+| status | ENUM | N/A | Yes | Delivery status |
+| api_response | JSON | N/A | Yes | SMS service response |
+| sent_at | TIMESTAMP | N/A | No | Send time |
+| delivered_at | TIMESTAMP | N/A | Yes | Delivery time |
 
 **Status Values:**
 - `pending` - Queued for sending
@@ -118,16 +118,16 @@ To view the interactive Entity Relationship Diagram:
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT |  | No | Primary key |
-| user_id | INT |  | Yes | User who performed action |
+| id | INT | N/A | No | Primary key |
+| user_id | INT | N/A | Yes | User who performed action |
 | action | VARCHAR | 100 | No | Action type |
 | table_name | VARCHAR | 50 | Yes | Affected table |
-| record_id | INT |  | Yes | Affected record ID |
-| old_values | JSON |  | Yes | Values before change |
-| new_values | JSON |  | Yes | Values after change |
+| record_id | INT | N/A | Yes | Affected record ID |
+| old_values | JSON | N/A | Yes | Values before change |
+| new_values | JSON | N/A | Yes | Values after change |
 | ip_address | VARCHAR | 45 | Yes | User's IP address |
-| user_agent | TEXT |  | Yes | Browser/client info |
-| created_at | TIMESTAMP |  | No | Action time |
+| user_agent | TEXT | N/A | Yes | Browser/client info |
+| created_at | TIMESTAMP | N/A | No | Action time |
 
 **Common Actions:**
 - `LOGIN_SUCCESS` - Successful login
@@ -155,11 +155,11 @@ To view the interactive Entity Relationship Diagram:
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT |  | No | Primary key |
+| id | INT | N/A | No | Primary key |
 | setting_key | VARCHAR | 100 | No | Setting identifier |
-| setting_value | TEXT |  | Yes | Configuration value |
-| description | TEXT |  | Yes | Human-readable description |
-| updated_at | TIMESTAMP |  | No | Last update |
+| setting_value | TEXT | N/A | Yes | Configuration value |
+| description | TEXT | N/A | Yes | Human-readable description |
+| updated_at | TIMESTAMP | N/A | No | Last update |
 
 **Example Settings:**
 - `sms_enabled` - Enable/disable SMS notifications
