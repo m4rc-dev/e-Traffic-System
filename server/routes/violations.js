@@ -16,75 +16,75 @@ router.use(protect);
 // @access  Private
 router.get('/', async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search = '', 
-      status = '', 
+    const {
+      page = 1,
+      limit = 10,
+      search = '',
+      status = '',
       enforcer_id = '',
       violation_type = '',
       violator_name = '',
       repeat_offender = ''
     } = req.query;
-    
+
     const firebaseService = getFirebaseService();
-    
+
     // Ensure limit and page are valid numbers
     const validLimit = Math.max(1, Math.min(100, parseInt(limit) || 10));
     const validPage = Math.max(1, parseInt(page) || 1);
     const offset = (validPage - 1) * validLimit;
-    
+
     // Build conditions for Firebase
     const conditions = {};
-    
+
     if (status) {
       conditions.status = status;
     }
-    
+
     if (enforcer_id) {
       conditions.enforcer_id = enforcer_id;
     }
-    
+
     if (violation_type) {
       conditions.violation_type = violation_type;
     }
-    
+
     if (repeat_offender !== '') {
       conditions.is_repeat_offender = repeat_offender === 'true';
     }
-    
+
     // For search, we'll need to filter in memory since Firebase doesn't support full-text search
     const allViolations = await firebaseService.getViolations(conditions);
-    
+
     // Apply search filters in memory
     let filteredViolations = allViolations;
-    
+
     if (search) {
       const searchTerm = search.toLowerCase();
-      filteredViolations = filteredViolations.filter(violation => 
+      filteredViolations = filteredViolations.filter(violation =>
         (violation.violation_number && violation.violation_number.toLowerCase().includes(searchTerm)) ||
         (violation.violator_name && violation.violator_name.toLowerCase().includes(searchTerm)) ||
         (violation.vehicle_plate && violation.vehicle_plate.toLowerCase().includes(searchTerm))
       );
     }
-    
+
     if (violator_name) {
       const searchTerm = violator_name.toLowerCase();
-      filteredViolations = filteredViolations.filter(violation => 
+      filteredViolations = filteredViolations.filter(violation =>
         violation.violator_name && violation.violator_name.toLowerCase().includes(searchTerm)
       );
     }
-    
+
     // Sort by created_at descending (newest first)
     filteredViolations.sort((a, b) => {
       const aDate = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0);
       const bDate = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0);
       return bDate - aDate;
     });
-    
+
     // Apply pagination
     const paginatedViolations = filteredViolations.slice(offset, offset + validLimit);
-    
+
     // Get enforcer details for each violation
     const violationsWithEnforcer = await Promise.all(
       paginatedViolations.map(async (violation) => {
@@ -112,7 +112,7 @@ router.get('/', async (req, res) => {
         };
       })
     );
-    
+
     res.status(200).json({
       success: true,
       data: {
@@ -124,7 +124,7 @@ router.get('/', async (req, res) => {
         }
       }
     });
-    
+
   } catch (error) {
     console.error('Get violations error:', error);
     res.status(500).json({
@@ -141,16 +141,16 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const firebaseService = getFirebaseService();
-    
+
     const violation = await firebaseService.findById('violations', id);
-    
+
     if (!violation) {
       return res.status(404).json({
         success: false,
         error: 'Violation not found'
       });
     }
-    
+
     // Get enforcer details if exists
     if (violation.enforcer_id) {
       try {
@@ -166,12 +166,12 @@ router.get('/:id', async (req, res) => {
       violation.enforcer_name = 'Unknown';
       violation.enforcer_badge = 'Unknown';
     }
-    
+
     res.status(200).json({
       success: true,
       data: violation
     });
-    
+
   } catch (error) {
     console.error('Get violation error:', error);
     res.status(500).json({
@@ -202,31 +202,31 @@ router.post('/', [
     }
 
     const firebaseService = getFirebaseService();
-    
+
     // Generate violation number
     const violationNumber = await generateViolationNumber();
-    
+
     // Calculate due date (30 days from now)
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
-    
+
     // Check if violator is a repeat offender by looking for existing violations
     // with the same license number
     let isRepeatOffender = false;
     let previousViolationsCount = 0;
-    
+
     if (req.body.violator_license) {
       // Find existing violations with the same license number
       const existingViolations = await firebaseService.getViolations({
         violator_license: req.body.violator_license
       });
-      
+
       if (existingViolations && existingViolations.length > 0) {
         isRepeatOffender = true;
         previousViolationsCount = existingViolations.length;
       }
     }
-    
+
     // Create violation
     const violation = await firebaseService.createViolation({
       violation_number: violationNumber,
@@ -298,7 +298,7 @@ router.put('/:id', [
 
     const { id } = req.params;
     const firebaseService = getFirebaseService();
-    
+
     // Get current violation
     const currentViolation = await firebaseService.findById('violations', id);
     if (!currentViolation) {
@@ -323,30 +323,23 @@ router.put('/:id', [
     if (req.body.status === 'issued' && currentViolation.status !== 'issued') {
       // Check if violation is overdue (more than 7 days past due date)
       if (currentViolation.due_date && currentViolation.violator_phone) {
-        const dueDate = currentViolation.due_date.toDate ? 
-          currentViolation.due_date.toDate() : 
+        const dueDate = currentViolation.due_date.toDate ?
+          currentViolation.due_date.toDate() :
           new Date(currentViolation.due_date);
-        
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         dueDate.setHours(0, 0, 0, 0);
-        
+
         const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-        
+
         // If overdue by more than 7 days, send penalty reminder
         if (daysOverdue > 7) {
           const { sendSMS } = require('../services/smsService');
-          
-          // Create penalty reminder message (simplified to avoid spam filters and encoding issues)
-          const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
-            `Traffic Violation Reminder\n\n` +
-            `Violation: ${currentViolation.violation_type}\n` +
-            `Plate: ${currentViolation.vehicle_plate}\n` +
-            `Fine: PHP${currentViolation.fine_amount}\n` +
-            `Due: ${dueDate.toLocaleDateString()}\n\n` +
-            `Please settle at city transport office to avoid penalties.\n` +
-            `Ref: ${currentViolation.violation_number}`;
-          
+
+          // Create short penalty reminder message for better delivery
+          const message = `e-Traffic Reminder: Violation ${currentViolation.violation_type}, Plate: ${currentViolation.vehicle_plate}, Fine: PHP${currentViolation.fine_amount}, Due: ${dueDate.toLocaleDateString()}. Please settle. Ref: ${currentViolation.violation_number}`;
+
           // Send SMS in the background (don't wait for result)
           sendSMS(currentViolation.violator_phone, message, id)
             .then(result => {
@@ -368,22 +361,15 @@ router.put('/:id', [
       // Check if violation has necessary data
       if (currentViolation.violator_phone && currentViolation.due_date) {
         const { sendSMS } = require('../services/smsService');
-        
+
         // Get due date
-        const dueDate = currentViolation.due_date.toDate ? 
-          currentViolation.due_date.toDate() : 
+        const dueDate = currentViolation.due_date.toDate ?
+          currentViolation.due_date.toDate() :
           new Date(currentViolation.due_date);
-        
-        // Create penalty reminder message (simplified to avoid spam filters and encoding issues)
-        const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
-          `Traffic Violation Reminder\n\n` +
-          `Violation: ${currentViolation.violation_type}\n` +
-          `Plate: ${currentViolation.vehicle_plate}\n` +
-          `Fine: PHP${currentViolation.fine_amount}\n` +
-          `Due: ${dueDate.toLocaleDateString()}\n\n` +
-          `Please settle at city transport office to avoid penalties.\n` +
-          `Ref: ${currentViolation.violation_number}`;
-        
+
+        // Create short penalty reminder message for better delivery
+        const message = `e-Traffic Reminder: Violation ${currentViolation.violation_type}, Plate: ${currentViolation.vehicle_plate}, Fine: PHP${currentViolation.fine_amount}, Due: ${dueDate.toLocaleDateString()}. Please settle. Ref: ${currentViolation.violation_number}`;
+
         // Send SMS in the background (don't wait for result)
         sendSMS(currentViolation.violator_phone, message, id)
           .then(result => {
@@ -433,7 +419,7 @@ router.post('/:id/send-sms', authorize('admin'), async (req, res) => {
     const { id } = req.params;
     const { message } = req.body;
     const firebaseService = getFirebaseService();
-    
+
     // Get violation
     const violation = await firebaseService.findById('violations', id);
     if (!violation) {
@@ -442,7 +428,7 @@ router.post('/:id/send-sms', authorize('admin'), async (req, res) => {
         error: 'Violation not found'
       });
     }
-    
+
     // Check if violator has a phone number
     if (!violation.violator_phone) {
       return res.status(400).json({
@@ -450,10 +436,10 @@ router.post('/:id/send-sms', authorize('admin'), async (req, res) => {
         error: 'No phone number available for this violator'
       });
     }
-    
+
     // Send SMS
     const smsResult = await sendSMS(violation.violator_phone, message, id);
-    
+
     if (smsResult.success) {
       // Log audit
       await logAudit(
@@ -465,7 +451,7 @@ router.post('/:id/send-sms', authorize('admin'), async (req, res) => {
         { message, phone_number: violation.violator_phone },
         req
       );
-      
+
       return res.status(200).json({
         success: true,
         message: 'SMS sent successfully',
@@ -493,7 +479,7 @@ router.delete('/:id', authorize('admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const firebaseService = getFirebaseService();
-    
+
     // Get violation
     const violation = await firebaseService.findById('violations', id);
     if (!violation) {
