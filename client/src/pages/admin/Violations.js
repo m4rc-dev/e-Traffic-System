@@ -14,6 +14,75 @@ const VIOLATION_TYPES = [
   'DUI'
 ];
 
+/**
+ * Parse various date formats for display, including ESP32 format
+ * Handles: Firebase Timestamp, ISO strings, ESP32 format (e.g., "12-4-25 14.30.0")
+ * @param {any} dateValue - The date value from the database
+ * @returns {Date} - Valid Date object or current date if parsing fails
+ */
+const parseDisplayDate = (dateValue) => {
+  if (!dateValue) return new Date();
+
+  // Handle Firebase Timestamp
+  if (dateValue?.seconds) {
+    return new Date(dateValue.seconds * 1000);
+  }
+
+  // Handle Date object
+  if (dateValue instanceof Date) {
+    return isNaN(dateValue.getTime()) ? new Date() : dateValue;
+  }
+
+  // Try standard Date parsing first
+  const standardDate = new Date(dateValue);
+  if (!isNaN(standardDate.getTime())) {
+    return standardDate;
+  }
+
+  // Try ESP32 format: "12-4-25 14.30.0" (MM-D-YY HH.MM.SS)
+  if (typeof dateValue === 'string') {
+    try {
+      const cleaned = dateValue.trim();
+      const parts = cleaned.split(' ');
+
+      if (parts.length === 2) {
+        const [datePart, timePart] = parts;
+
+        // Split date by / or -
+        const datePieces = datePart.includes('/')
+          ? datePart.split('/')
+          : datePart.split('-');
+
+        if (datePieces.length === 3) {
+          let [month, day, year] = datePieces.map(Number);
+
+          // Handle 2-digit year
+          if (year < 100) year += 2000;
+
+          // Split time by : or .
+          const timePieces = timePart.includes(':')
+            ? timePart.split(':')
+            : timePart.split('.');
+
+          const hours = parseInt(timePieces[0], 10) || 0;
+          const minutes = parseInt(timePieces[1], 10) || 0;
+          const seconds = timePieces.length > 2 ? parseInt(timePieces[2], 10) : 0;
+
+          const date = new Date(year, month - 1, day, hours, minutes, seconds);
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing ESP32 date:', error);
+    }
+  }
+
+  // Fallback to current date
+  return new Date();
+};
+
 const Violations = () => {
   const [filters, setFilters] = useState({
     page: 1,
@@ -27,11 +96,11 @@ const Violations = () => {
     repeat_offender: '',
     violator_name: '',
   });
-  
+
   // Debounced filters for search fields (violator_name, violation_type, search)
   const [debouncedFilters, setDebouncedFilters] = useState(filters);
   const debounceTimeoutRef = useRef(null);
-  
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingViolation, setEditingViolation] = useState(null);
   const [formErrors, setFormErrors] = useState({});
@@ -95,7 +164,7 @@ const Violations = () => {
 
   // State for tracking the selected status in the edit form
   const [selectedStatus, setSelectedStatus] = useState('');
-  
+
   // Send SMS mutation
   const sendSMSMutation = useMutation({
     mutationFn: ({ id, data }) => violationsAPI.sendSMS(id, data),
@@ -118,23 +187,16 @@ const Violations = () => {
       setEditingViolation(null);
       setFormErrors({});
       setSelectedStatus('');
-      
+
       // Check if we should send SMS (status was updated to 'paid' and sendSMS was checked)
       if (variables.data.status === 'paid' && variables.data.sendSMS) {
-        const message = `Good day, Ma'am/Sir, this is e-Traffic.\n\n` +
-          `Traffic Violation Payment Confirmed\n\n` +
-          `Violation: ${variables.data.violationType}\n` +
-          `Plate: ${variables.data.vehiclePlate}\n` +
-          `Paid: PHP${variables.data.fineAmount}\n` +
-          `Date: ${new Date().toLocaleDateString()}\n\n` +
-          `Record updated. Thank you.\n` +
-          `Ref: ${variables.data.violationNumber}`;
-        sendSMSMutation.mutate({ 
-          id: variables.id, 
-          data: { message } 
+        const message = `e-Traffic: Payment Confirmed. Violation: ${variables.data.violationType}, Plate: ${variables.data.vehiclePlate}, Paid: PHP${variables.data.fineAmount}. Ref: ${variables.data.violationNumber}`;
+        sendSMSMutation.mutate({
+          id: variables.id,
+          data: { message }
         });
       }
-      
+
       toast.success('Violation updated successfully');
     },
     onError: (error) => {
@@ -202,31 +264,31 @@ const Violations = () => {
     try {
       setIsExporting(true);
       toast.loading('Preparing export...', { id: 'export' });
-      
+
       // Fetch violations data for PDF generation
       const response = await violationsAPI.getViolations({
         ...filters,
         limit: 10000 // Get all violations for export
       });
-      
+
       if (!response.data?.data?.violations) {
         throw new Error('Failed to fetch violations data');
       }
-      
+
       const violations = response.data.data.violations;
-      
+
       // Generate PDF using jsPDF
       const { jsPDF } = window.jspdf || require('jspdf');
       window.jspdfAutoTable || require('jspdf-autotable');
-      
+
       const doc = new jsPDF('landscape');
       doc.setFont('helvetica');
-      
+
       // Add title
       doc.setFontSize(18);
       doc.text('Traffic Violations Report', 14, 20);
       doc.setFontSize(12);
-      
+
       // Add filter information
       let filterText = `Generated on: ${new Date().toLocaleDateString()}`;
       if (filters.status) filterText += ` | Status: ${filters.status}`;
@@ -234,7 +296,7 @@ const Violations = () => {
         filterText += ` | Period: ${filters.start_date} to ${filters.end_date}`;
       }
       doc.text(filterText, 14, 30);
-      
+
       // Add violations table
       doc.autoTable({
         startY: 40,
@@ -248,13 +310,13 @@ const Violations = () => {
           violation.status,
           `${violation.enforcer_name}\n${violation.enforcer_badge}`,
           violation.location,
-          new Date(violation.created_at).toLocaleDateString()
+          parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at).toLocaleDateString()
         ]),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [22, 160, 133] },
         margin: { top: 10 }
       });
-      
+
       // Save the PDF
       const today = new Date().toISOString().split('T')[0];
       let filename = `violations_export_${today}`;
@@ -263,9 +325,9 @@ const Violations = () => {
         filename += `_${filters.start_date}_to_${filters.end_date}`;
       }
       filename += '.pdf';
-      
+
       doc.save(filename);
-      
+
       toast.success('Export completed successfully!', { id: 'export' });
     } catch (error) {
       console.error('Export error:', error);
@@ -273,7 +335,7 @@ const Violations = () => {
         message: error.message,
         stack: error.stack
       });
-      
+
       let errorMessage = 'Failed to export violations';
       if (error.message.includes('401')) {
         errorMessage = 'Authentication failed. Please login again.';
@@ -284,7 +346,7 @@ const Violations = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage, { id: 'export' });
     } finally {
       setIsExporting(false);
@@ -298,12 +360,12 @@ const Violations = () => {
     const notes = formData.get('notes');
     const sendSMS = formData.get('sendSMS') === 'on';
     const sendPenaltyReminder = formData.get('sendPenaltyReminder') === 'on';
-    
+
     const violationData = {
       status,
       notes
     };
-    
+
     // Add SMS flag and violation details if status is 'paid'
     if (status === 'paid') {
       violationData.sendSMS = sendSMS;
@@ -315,7 +377,7 @@ const Violations = () => {
       violationData.enforcerName = editingViolation.enforcer_name;
       violationData.badgeNumber = editingViolation.enforcer_badge;
     }
-    
+
     // Add penalty reminder flag if status is 'issued' and checkbox is checked
     if (status === 'issued' && sendPenaltyReminder) {
       violationData.sendPenaltyReminder = sendPenaltyReminder;
@@ -329,16 +391,19 @@ const Violations = () => {
       violationData.violatorPhone = editingViolation.violator_phone;
     }
 
-    updateViolationMutation.mutate({ 
-      id: editingViolation.id, 
-      data: violationData 
+    updateViolationMutation.mutate({
+      id: editingViolation.id,
+      data: violationData
     });
   };
 
   const handlePrintReceipt = (violation) => {
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
-    
+
+    // Parse the violation date for display
+    const violationDate = parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at);
+
     // Generate the receipt HTML
     const receiptHTML = `
       <!DOCTYPE html>
@@ -440,7 +505,7 @@ const Violations = () => {
             </div>
             <div class="info-item">
               <span class="info-label">Date & Time:</span>
-              <span>${new Date(violation.created_at).toLocaleString()}</span>
+              <span>${violationDate.toLocaleString()}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Enforcer:</span>
@@ -547,13 +612,13 @@ const Violations = () => {
       </body>
       </html>
     `;
-    
+
     // Write the HTML to the new window
     printWindow.document.write(receiptHTML);
     printWindow.document.close();
-    
+
     // Focus the window and trigger print when it loads
-    printWindow.onload = function() {
+    printWindow.onload = function () {
       printWindow.focus();
       // Uncomment the line below if you want to automatically trigger print
       // printWindow.print();
@@ -588,68 +653,67 @@ const Violations = () => {
     <div className="space-y-6">
       {/* Page header */}
       <div className="bg-gradient-to-r from-white to-gray-50 rounded-2xl mobile-card shadow-sm border border-gray-100">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h1 className="responsive-text-2xl font-bold text-gray-900">Traffic Violations</h1>
-          <p className="mt-1 responsive-text-sm text-gray-500">
-            View and manage violations recorded by enforcers via IoT devices
-          </p>
-        </div>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div>
+            <h1 className="responsive-text-2xl font-bold text-gray-900">Traffic Violations</h1>
+            <p className="mt-1 responsive-text-sm text-gray-500">
+              View and manage violations recorded by enforcers via IoT devices
+            </p>
+          </div>
           <div className="mobile-button-group">
             {/* Simplified View Pending Button */}
-          <button 
-            onClick={() => handleFilterChange('status', filters.status === 'pending' ? '' : 'pending')}
-              className={`mobile-btn ${
-                filters.status === 'pending' 
-                  ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md' 
-                  : 'bg-orange-500 text-white hover:bg-orange-600 shadow-md'
-              }`}
-            title={filters.status === 'pending' ? 'Show all violations' : 'Show only pending violations'}
-          >
+            <button
+              onClick={() => handleFilterChange('status', filters.status === 'pending' ? '' : 'pending')}
+              className={`mobile-btn ${filters.status === 'pending'
+                ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md'
+                : 'bg-orange-500 text-white hover:bg-orange-600 shadow-md'
+                }`}
+              title={filters.status === 'pending' ? 'Show all violations' : 'Show only pending violations'}
+            >
               <Eye className="h-4 w-4" />
               <span className="hidden sm:inline">{filters.status === 'pending' ? 'Show All' : 'View Pending'}</span>
               <span className="sm:hidden">{filters.status === 'pending' ? 'All' : 'Pending'}</span>
-          </button>
-            
+            </button>
+
             {/* Simplified Refresh Button */}
-          <button 
-            onClick={async () => {
-              try {
-                // Invalidate all related queries
-                await queryClient.invalidateQueries(['violations']);
-                await queryClient.invalidateQueries(['violationStats']);
-                await queryClient.invalidateQueries(['adminDashboard']);
-                
-                // Force refetch the current query
-                await refetch();
-                
-                toast.success('Data refreshed successfully!');
-              } catch (error) {
-                console.error('Refresh error:', error);
-                toast.error('Failed to refresh data');
-              }
-            }}
-            disabled={isFetching}
+            <button
+              onClick={async () => {
+                try {
+                  // Invalidate all related queries
+                  await queryClient.invalidateQueries(['violations']);
+                  await queryClient.invalidateQueries(['violationStats']);
+                  await queryClient.invalidateQueries(['adminDashboard']);
+
+                  // Force refetch the current query
+                  await refetch();
+
+                  toast.success('Data refreshed successfully!');
+                } catch (error) {
+                  console.error('Refresh error:', error);
+                  toast.error('Failed to refresh data');
+                }
+              }}
+              disabled={isFetching}
               className="mobile-btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+            >
               <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{isFetching ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
-            
+            </button>
+
             {/* Simplified Export Button */}
-          <button 
-            onClick={handleExport}
-            disabled={isExporting}
+            <button
+              onClick={handleExport}
+              disabled={isExporting}
               className="mobile-btn bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Export current violations to CSV"
-          >
-            {isExporting ? (
+              title="Export current violations to CSV"
+            >
+              {isExporting ? (
                 <LoadingSpinner size="sm" />
-            ) : (
+              ) : (
                 <Download className="h-4 w-4" />
-            )}
+              )}
               <span className="hidden sm:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
-          </button>
+            </button>
           </div>
         </div>
       </div>
@@ -658,65 +722,65 @@ const Violations = () => {
       <div className="bg-white rounded-2xl mobile-card shadow-sm border border-gray-100">
         <div className="mobile-stats-grid-3">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl border border-blue-200 p-6 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="flex-1">
+            <div className="flex items-center">
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-blue-700 uppercase tracking-wide mb-2">Total Violations</p>
-              <p className="text-3xl font-bold text-blue-900">{dashboardStats?.data?.data?.totalViolations || 0}</p>
+                <p className="text-3xl font-bold text-blue-900">{dashboardStats?.data?.data?.totalViolations || 0}</p>
                 <div className="mt-2 flex items-center text-sm text-blue-600">
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                   <span>Total recorded</span>
                 </div>
-            </div>
+              </div>
               <div className="p-4 bg-blue-200 rounded-2xl shadow-inner">
                 <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
-        
+
           <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-2xl border border-amber-200 p-6 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="flex-1">
+            <div className="flex items-center">
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-amber-700 uppercase tracking-wide mb-2">Pending Violations</p>
                 <p className="text-3xl font-bold text-amber-800">
-                {dashboardStats?.data?.data?.violationsByStatus?.find(s => s.status === 'pending')?.count || 0}
-              </p>
+                  {dashboardStats?.data?.data?.violationsByStatus?.find(s => s.status === 'pending')?.count || 0}
+                </p>
                 <div className="mt-2 flex items-center text-sm text-amber-600">
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>Awaiting payment</span>
                 </div>
-            </div>
+              </div>
               <div className="p-4 bg-amber-200 rounded-2xl shadow-inner">
                 <svg className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
-        
+
           <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl border border-green-200 p-6 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="flex-1">
+            <div className="flex items-center">
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-green-700 uppercase tracking-wide mb-2">Paid Violations</p>
                 <p className="text-3xl font-bold text-green-800">
-                {dashboardStats?.data?.data?.violationsByStatus?.find(s => s.status === 'paid')?.count || 0}
-              </p>
+                  {dashboardStats?.data?.data?.violationsByStatus?.find(s => s.status === 'paid')?.count || 0}
+                </p>
                 <div className="mt-2 flex items-center text-sm text-green-600">
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>Successfully collected</span>
                 </div>
-            </div>
+              </div>
               <div className="p-4 bg-green-200 rounded-2xl shadow-inner">
                 <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
             </div>
           </div>
@@ -724,11 +788,10 @@ const Violations = () => {
       </div>
 
       {/* Info Banner */}
-      <div className={`border rounded-lg p-4 ${
-        filters.status === 'pending' 
-          ? 'bg-warning-50 border-warning-200' 
-          : 'bg-blue-50 border-blue-200'
-      }`}>
+      <div className={`border rounded-lg p-4 ${filters.status === 'pending'
+        ? 'bg-warning-50 border-warning-200'
+        : 'bg-blue-50 border-blue-200'
+        }`}>
         <div className="flex">
           <div className="flex-shrink-0">
             {filters.status === 'pending' ? (
@@ -742,17 +805,15 @@ const Violations = () => {
             )}
           </div>
           <div className="ml-3">
-            <h3 className={`text-sm font-medium ${
-              filters.status === 'pending' ? 'text-warning-800' : 'text-blue-800'
-            }`}>
+            <h3 className={`text-sm font-medium ${filters.status === 'pending' ? 'text-warning-800' : 'text-blue-800'
+              }`}>
               {filters.status === 'pending' ? 'Pending Violations View' : 'IoT Device Integration'}
             </h3>
-            <div className={`mt-2 text-sm ${
-              filters.status === 'pending' ? 'text-warning-700' : 'text-blue-700'
-            }`}>
+            <div className={`mt-2 text-sm ${filters.status === 'pending' ? 'text-warning-700' : 'text-blue-700'
+              }`}>
               <p>
-                {filters.status === 'pending' 
-                  ? 'You are currently viewing pending violations that require review and processing. These violations were recorded by enforcers and are awaiting status updates.' 
+                {filters.status === 'pending'
+                  ? 'You are currently viewing pending violations that require review and processing. These violations were recorded by enforcers and are awaiting status updates.'
                   : 'Violations are automatically recorded by enforcers using handheld IoT devices. This interface allows administrators to view, manage, and process the recorded violations.'
                 }
               </p>
@@ -959,7 +1020,7 @@ const Violations = () => {
                 Violations List
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                {filters.status === 'pending' 
+                {filters.status === 'pending'
                   ? 'Pending violations requiring review'
                   : 'All traffic violations recorded by enforcers'
                 }
@@ -1061,10 +1122,10 @@ const Violations = () => {
                   <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {new Date(violation.created_at).toLocaleDateString()}
+                        {parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at).toLocaleDateString()}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {new Date(violation.created_at).toLocaleTimeString()}
+                        {parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at).toLocaleTimeString()}
                       </div>
                     </div>
                   </td>
@@ -1073,20 +1134,20 @@ const Violations = () => {
                       <button className="text-primary-600 hover:text-primary-900 p-1 rounded-md hover:bg-primary-50 transition-colors">
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleEdit(violation)}
                         className="text-warning-600 hover:text-warning-900 p-1 rounded-md hover:bg-warning-50 transition-colors"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handlePrintReceipt(violation)}
                         className="text-blue-600 hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors"
                         title="Print Receipt"
                       >
                         <Printer className="h-4 w-4" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleDelete(violation)}
                         className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                       >
@@ -1108,7 +1169,7 @@ const Violations = () => {
               </div>
               <h3 className="text-xl font-medium text-gray-900 mb-3">No violations found</h3>
               <p className="text-gray-500 max-w-md mx-auto leading-relaxed">
-                {filters.status === 'pending' 
+                {filters.status === 'pending'
                   ? 'No pending violations at the moment. All violations have been processed.'
                   : 'Violations will appear here once enforcers record them using their IoT devices.'
                 }
@@ -1161,7 +1222,7 @@ const Violations = () => {
               </h2>
               <p className="text-sm text-gray-600 mt-1">Update violation status and add administrative notes</p>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="mobile-card space-y-6">
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -1191,9 +1252,8 @@ const Violations = () => {
                   defaultValue={editingViolation.status}
                   required
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className={`mobile-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 ${
-                    formErrors.status ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-                  }`}
+                  className={`mobile-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 ${formErrors.status ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                    }`}
                 >
                   <option value="pending">Pending</option>
                   <option value="issued">Issued</option>
@@ -1270,9 +1330,8 @@ const Violations = () => {
                   rows="4"
                   defaultValue={editingViolation.notes || ''}
                   placeholder="Add administrative notes or updates..."
-                  className={`mobile-input w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none transition-colors duration-200 ${
-                    formErrors.notes ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-                  }`}
+                  className={`mobile-input w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none transition-colors duration-200 ${formErrors.notes ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
+                    }`}
                 />
                 {formErrors.notes && (
                   <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
