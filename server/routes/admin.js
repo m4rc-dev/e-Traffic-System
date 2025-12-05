@@ -1,180 +1,40 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
-const { body, validationResult } = require('express-validator');
-const { getFirebaseService } = require('../config/database');
 const { protect, adminOnly } = require('../middleware/auth');
-const { generateNextBadgeNumber } = require('../utils/badgeNumberGenerator');
+const { getFirebaseService } = require('../config/database');
 const { logAudit } = require('../utils/auditLogger');
+const { generateNextBadgeNumber } = require('../utils/badgeNumberGenerator');
+const rateLimit = require('express-rate-limit');
 
 const router = express.Router();
+
+// Rate limiter for repeat offenders endpoint
+const repeatOffendersLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    error: 'Too many requests from this IP, please try again after 15 minutes'
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
 
 // Apply admin protection to all routes
 router.use(protect, adminOnly);
 
-// @desc    Get dashboard statistics
-// @route   GET /api/admin/dashboard
-// @access  Private (Admin only)
-router.get('/dashboard', async (req, res) => {
-  try {
-    const firebaseService = getFirebaseService();
-    
-    // Get total violations
-    const totalViolations = await firebaseService.count('violations');
-    
-    // Get violations by status
-    const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
-    const violationsByStatusObj = {};
-    allViolations.forEach(violation => {
-      const status = violation.status || 'unknown';
-      violationsByStatusObj[status] = (violationsByStatusObj[status] || 0) + 1;
-    });
-    
-    // Convert to array format expected by frontend
-    const violationsByStatus = Object.entries(violationsByStatusObj).map(([status, count]) => ({
-      status,
-      count
-    }));
-    
-    // Get violations by month (last 6 months)
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    const monthlyData = [];
-    for (let i = 5; i >= 0; i--) {
-      const month = new Date();
-      month.setMonth(month.getMonth() - i);
-      const monthKey = month.toISOString().substring(0, 7); // YYYY-MM format
-      
-      const monthViolations = allViolations.filter(violation => {
-        if (!violation.created_at) return false;
-        const violationDate = new Date(violation.created_at.toDate ? violation.created_at.toDate() : violation.created_at);
-        const violationMonth = violationDate.toISOString().substring(0, 7);
-        return violationMonth === monthKey;
-      });
-      
-      const totalFines = monthViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
-      const collectedFines = monthViolations
-        .filter(v => v.status === 'paid')
-        .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
-      const paidViolations = monthViolations.filter(v => v.status === 'paid').length;
-      
-      monthlyData.push({
-        month: monthKey,
-        totalViolations: monthViolations.length,
-        totalFines,
-        collectedFines,
-        paidViolations
-      });
-    }
-    
-    // Get total enforcers
-    const totalEnforcers = await firebaseService.count('users', { role: 'enforcer' });
-    
-    // Get active enforcers
-    const activeEnforcers = await firebaseService.count('users', { role: 'enforcer', is_active: true });
-    
-    // Get total fines collected
-    const paidViolations = allViolations.filter(v => v.status === 'paid');
-    const totalFines = paidViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
-    
-    // Get recent violations (last 7 days) with enforcer details
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    let recentViolations = allViolations.filter(violation => {
-      if (!violation.created_at) return false;
-      const violationDate = new Date(violation.created_at.toDate ? violation.created_at.toDate() : violation.created_at);
-      return violationDate >= sevenDaysAgo;
-    });
-    
-    // Sort recent violations by date (newest first) and limit to 10
-    recentViolations.sort((a, b) => {
-      const aDate = new Date(a.created_at.toDate ? a.created_at.toDate() : a.created_at);
-      const bDate = new Date(b.created_at.toDate ? b.created_at.toDate() : b.created_at);
-      return bDate - aDate;
-    });
-    
-    // Get enforcer details for recent violations
-    const recentViolationsWithEnforcer = await Promise.all(
-      recentViolations.slice(0, 10).map(async (violation) => {
-        if (violation.enforcer_id) {
-          try {
-            const enforcer = await firebaseService.findById('users', violation.enforcer_id);
-            return {
-              ...violation,
-              enforcer_name: enforcer ? enforcer.full_name : 'Unknown',
-              enforcer_badge: enforcer ? enforcer.badge_number : 'Unknown'
-            };
-          } catch (error) {
-            console.error(`Error fetching enforcer for violation ${violation.id}:`, error);
-            return {
-              ...violation,
-              enforcer_name: 'Unknown',
-              enforcer_badge: 'Unknown'
-            };
-          }
-        }
-        return {
-          ...violation,
-          enforcer_name: 'Unknown',
-          enforcer_badge: 'Unknown'
-        };
-      })
-    );
-    
-    // Get violations by enforcer
-    const violationsByEnforcer = {};
-    allViolations.forEach(violation => {
-      if (violation.enforcer_id) {
-        violationsByEnforcer[violation.enforcer_id] = (violationsByEnforcer[violation.enforcer_id] || 0) + 1;
-      }
-    });
-    
-    // Get top enforcers with names
-    const topEnforcers = [];
-    for (const [enforcerId, count] of Object.entries(violationsByEnforcer)) {
-      const enforcer = await firebaseService.findById('users', enforcerId);
-      if (enforcer) {
-        topEnforcers.push({
-          enforcer_name: enforcer.full_name,
-          violation_count: count
-        });
-      }
-    }
-    topEnforcers.sort((a, b) => b.violation_count - a.violation_count);
-    
-    res.status(200).json({
-      success: true,
-      data: {
-        totalViolations,
-        violationsByStatus,
-        monthlyData,
-        totalEnforcers,
-        activeEnforcers,
-        totalFines,
-        recentViolations: recentViolationsWithEnforcer, // Return array of recent violations with enforcer details
-        violationsByEnforcer: topEnforcers.slice(0, 10)
-      }
-    });
-    
-  } catch (error) {
-    console.error('Dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load dashboard data'
-    });
-  }
-});
+// Add rate limiting middleware
 
-// @desc    Get repeat offenders
-// @route   GET /api/admin/repeat-offenders
-// @access  Private (Admin only)
-router.get('/repeat-offenders', async (req, res) => {
+// Apply rate limiting to the repeat offenders endpoint
+router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
   try {
     const { min_violations = 2 } = req.query;
     const firebaseService = getFirebaseService();
     
+    console.log('Repeat offenders request received with params:', req.query);
+    
     // Get all violations
     const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
+    console.log(`Found ${allViolations.length} total violations`);
     
     // Group by violator (using license plate as identifier)
     const violatorGroups = {};
@@ -186,12 +46,33 @@ router.get('/repeat-offenders', async (req, res) => {
           violatorGroups[key] = [];
         }
         violatorGroups[key].push(violation);
+      } else {
+        console.log('Violation without identifier fields:', {
+          id: violation.id,
+          violator_name: violation.violator_name,
+          violator_license: violation.violator_license,
+          vehicle_plate: violation.vehicle_plate
+        });
       }
+    });
+    
+    console.log(`Grouped into ${Object.keys(violatorGroups).length} violator groups`);
+    
+    // Show some sample groups for debugging
+    const sampleGroups = Object.entries(violatorGroups).slice(0, 5);
+    sampleGroups.forEach(([key, violations]) => {
+      console.log(`Group ${key}: ${violations.length} violations`);
     });
     
     // Find repeat offenders (based on min_violations parameter, default 2)
     const repeatOffenders = Object.entries(violatorGroups)
-      .filter(([key, violations]) => violations.length >= parseInt(min_violations))
+      .filter(([key, violations]) => {
+        const isRepeat = violations.length >= parseInt(min_violations);
+        if (isRepeat) {
+          console.log(`Repeat offender found: ${key} with ${violations.length} violations`);
+        }
+        return isRepeat;
+      })
       .map(([key, violations]) => {
         // Sort violations by date (newest first)
         violations.sort((a, b) => {
@@ -231,6 +112,14 @@ router.get('/repeat-offenders', async (req, res) => {
       })
       .sort((a, b) => b.total_violations - a.total_violations);
     
+    // Apply limit if specified
+    const { limit } = req.query;
+    const limitedRepeatOffenders = limit 
+      ? repeatOffenders.slice(0, parseInt(limit)) 
+      : repeatOffenders;
+    
+    console.log(`Found ${repeatOffenders.length} repeat offenders, returning ${limitedRepeatOffenders.length} (limit: ${limit})`);
+    
     // Calculate statistics
     const totalRepeatOffenders = repeatOffenders.length;
     const avgViolationsPerOffender = totalRepeatOffenders > 0 
@@ -246,13 +135,20 @@ router.get('/repeat-offenders', async (req, res) => {
       max_violations: maxViolations
     };
     
-    res.status(200).json({
+    const response = {
       success: true,
       data: {
-        repeatOffenders,
+        repeatOffenders: limitedRepeatOffenders,
         statistics
       }
+    };
+    
+    console.log('Sending repeat offenders response:', {
+      repeatOffendersCount: limitedRepeatOffenders.length,
+      statistics
     });
+    
+    res.status(200).json(response);
     
   } catch (error) {
     console.error('Repeat offenders error:', error);
