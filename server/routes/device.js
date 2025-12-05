@@ -7,6 +7,66 @@ const { sendSMS } = require('../services/smsService');
 
 const router = express.Router();
 
+// Helper function to parse ESP32 datetime format (MM-D-YY HH.MM.SS or MM-DD-YY HH.MM.SS)
+const parseEsp32DateTime = (dateTimeStr) => {
+  try {
+    // Clean the datetime string
+    let cleaned = dateTimeStr.trim();
+    
+    // If string is too short, return current date
+    if (cleaned.length < 8) {
+      return new Date();
+    }
+    
+    // Replace dots with colons for time portion
+    // Split by space to separate date and time
+    const parts = cleaned.split(' ');
+    if (parts.length !== 2) {
+      return new Date();
+    }
+    
+    // Parse date part (MM-D-YY or MM-DD-YY)
+    const datePart = parts[0];
+    const dateParts = datePart.split('-');
+    if (dateParts.length !== 3) {
+      return new Date();
+    }
+    
+    let month = parseInt(dateParts[0]);
+    let day = parseInt(dateParts[1]);
+    let year = parseInt(dateParts[2]);
+    
+    // Handle 2-digit year (assuming 25 = 2025)
+    if (year < 100) {
+      year = year < 50 ? 2000 + year : 1900 + year;
+    }
+    
+    // Parse time part (HH.MM.SS)
+    const timePart = parts[1];
+    const timeParts = timePart.split('.');
+    if (timeParts.length !== 3) {
+      return new Date();
+    }
+    
+    let hour = parseInt(timeParts[0]);
+    let minute = parseInt(timeParts[1]);
+    let second = parseInt(timeParts[2]);
+    
+    // Create date object (months are 0-indexed in JS)
+    const parsedDate = new Date(year, month - 1, day, hour, minute, second);
+    
+    // Validate the date
+    if (isNaN(parsedDate.getTime())) {
+      return new Date();
+    }
+    
+    return parsedDate;
+  } catch (error) {
+    console.error('Error parsing ESP32 datetime:', dateTimeStr, error);
+    return new Date();
+  }
+};
+
 const parseDeviceKeys = () => {
   const rawKeys = process.env.DEVICE_API_KEYS || process.env.DEVICE_API_KEY || '';
 
@@ -147,7 +207,7 @@ router.post(
         captured_at: req.body.captured_at
           ? new Date(req.body.captured_at)
           : req.body.datetime
-          ? new Date(req.body.datetime)
+          ? parseEsp32DateTime(req.body.datetime)
           : new Date(),
       };
 
