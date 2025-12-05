@@ -61,10 +61,9 @@ const sendSMS = async (phoneNumber, message, violationId = null) => {
     const smsPayload = {
       api_token: apiToken,
       phone_number: formattedPhoneNumber,
-      message: message
-    };
-
-    // Send SMS to iprogsms.com
+      message: message,
+      sender_name: "Ka Prets"
+    };    // Send SMS to iprogsms.com
     const response = await axios.post(apiUrl, smsPayload, {
       headers: {
         'Content-Type': 'application/json'
