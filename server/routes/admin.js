@@ -1,9 +1,11 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const { protect, adminOnly } = require('../middleware/auth');
 const { getFirebaseService } = require('../config/database');
 const { logAudit } = require('../utils/auditLogger');
 const { generateNextBadgeNumber } = require('../utils/badgeNumberGenerator');
 const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcryptjs');
 
 const router = express.Router();
 
