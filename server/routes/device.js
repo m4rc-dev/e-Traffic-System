@@ -7,63 +7,69 @@ const { sendSMS } = require('../services/smsService');
 
 const router = express.Router();
 
-// Helper function to parse ESP32 datetime format (MM-D-YY HH.MM.SS or MM-DD-YY HH.MM.SS)
-const parseEsp32DateTime = (dateTimeStr) => {
+/**
+ * Parse ESP32 datetime format (e.g., "12-4-25 14.30.0" -> Date object)
+ * Format: MM-D-YY HH.MM.SS (with dots instead of colons)
+ * @param {string} dateTimeStr - The datetime string from ESP32
+ * @returns {Date|null} - Valid Date object or null if parsing fails
+ */
+const parseESP32DateTime = (dateTimeStr) => {
+  if (!dateTimeStr || typeof dateTimeStr !== 'string') {
+    return null;
+  }
+
   try {
-    // Clean the datetime string
-    let cleaned = dateTimeStr.trim();
-    
-    // If string is too short, return current date
-    if (cleaned.length < 8) {
-      return new Date();
-    }
-    
-    // Replace dots with colons for time portion
-    // Split by space to separate date and time
+    // Clean the string
+    const cleaned = dateTimeStr.trim();
+
+    // Pattern: "12-4-25 14.30.0" -> [date, time]
     const parts = cleaned.split(' ');
     if (parts.length !== 2) {
-      return new Date();
+      console.log('ESP32 DateTime parse failed: Invalid format (expected date time)', dateTimeStr);
+      return null;
     }
-    
-    // Parse date part (MM-D-YY or MM-DD-YY)
-    const datePart = parts[0];
-    const dateParts = datePart.split('-');
-    if (dateParts.length !== 3) {
-      return new Date();
+
+    const [datePart, timePart] = parts;
+
+    // Parse date: "12-4-25" -> month=12, day=4, year=25
+    const datePieces = datePart.split('-');
+    if (datePieces.length !== 3) {
+      console.log('ESP32 DateTime parse failed: Invalid date format', datePart);
+      return null;
     }
-    
-    let month = parseInt(dateParts[0]);
-    let day = parseInt(dateParts[1]);
-    let year = parseInt(dateParts[2]);
-    
-    // Handle 2-digit year (assuming 25 = 2025)
+
+    let [month, day, year] = datePieces.map(Number);
+
+    // Handle 2-digit year (25 -> 2025)
     if (year < 100) {
-      year = year < 50 ? 2000 + year : 1900 + year;
+      year += 2000;
     }
-    
-    // Parse time part (HH.MM.SS)
-    const timePart = parts[1];
-    const timeParts = timePart.split('.');
-    if (timeParts.length !== 3) {
-      return new Date();
+
+    // Parse time: "14.30.0" -> hours=14, minutes=30, seconds=0
+    const timePieces = timePart.split('.');
+    if (timePieces.length < 2) {
+      console.log('ESP32 DateTime parse failed: Invalid time format', timePart);
+      return null;
     }
-    
-    let hour = parseInt(timeParts[0]);
-    let minute = parseInt(timeParts[1]);
-    let second = parseInt(timeParts[2]);
-    
-    // Create date object (months are 0-indexed in JS)
-    const parsedDate = new Date(year, month - 1, day, hour, minute, second);
-    
+
+    const hours = parseInt(timePieces[0], 10);
+    const minutes = parseInt(timePieces[1], 10);
+    const seconds = timePieces.length > 2 ? parseInt(timePieces[2], 10) : 0;
+
+    // Create date object (months are 0-indexed in JavaScript)
+    const date = new Date(year, month - 1, day, hours, minutes, seconds);
+
     // Validate the date
-    if (isNaN(parsedDate.getTime())) {
-      return new Date();
+    if (isNaN(date.getTime())) {
+      console.log('ESP32 DateTime parse failed: Invalid date result', dateTimeStr);
+      return null;
     }
-    
-    return parsedDate;
+
+    console.log(`ESP32 DateTime parsed: "${dateTimeStr}" -> ${date.toISOString()}`);
+    return date;
   } catch (error) {
-    console.error('Error parsing ESP32 datetime:', dateTimeStr, error);
-    return new Date();
+    console.error('ESP32 DateTime parse error:', error, dateTimeStr);
+    return null;
   }
 };
 
@@ -171,13 +177,13 @@ router.post(
       // with the same license number
       let isRepeatOffender = false;
       let previousViolationsCount = 0;
-      
+
       if (req.body.violator_license) {
         // Find existing violations with the same license number
         const existingViolations = await firebaseService.getViolations({
           violator_license: req.body.violator_license
         });
-        
+
         if (existingViolations && existingViolations.length > 0) {
           isRepeatOffender = true;
           previousViolationsCount = existingViolations.length;
@@ -207,8 +213,8 @@ router.post(
         captured_at: req.body.captured_at
           ? new Date(req.body.captured_at)
           : req.body.datetime
-          ? parseEsp32DateTime(req.body.datetime)
-          : new Date(),
+            ? (parseESP32DateTime(req.body.datetime) || new Date())
+            : new Date(),
       };
 
       const violation = await firebaseService.createViolation(violationPayload);
