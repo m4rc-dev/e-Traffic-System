@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
-import { 
-  Save, 
-  Settings as SettingsIcon, 
-  MessageSquare, 
-  Shield, 
-  Database, 
+import {
+  Save,
+  Settings as SettingsIcon,
+  MessageSquare,
+  Shield,
+  Database,
   Bell
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -84,10 +84,10 @@ function Settings() {
   });
 
   useEffect(() => {
-    if (currentSettings?.data) {
+    if (currentSettings?.data?.data) {
       setFormData(prev => ({
         ...prev,
-        ...currentSettings.data
+        ...currentSettings.data.data
       }));
     }
   }, [currentSettings]);
@@ -97,7 +97,7 @@ function Settings() {
       ...prev,
       [key]: value
     }));
-    
+
     if (errors[key]) {
       setErrors(prev => ({
         ...prev,
@@ -137,7 +137,7 @@ function Settings() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -280,8 +280,8 @@ function Settings() {
               />
             </FormField>
 
-            <FormField 
-              label="SMS API Key" 
+            <FormField
+              label="SMS API Key"
               required={formData.sms_enabled}
               error={errors.sms_api_key}
             >
@@ -295,8 +295,8 @@ function Settings() {
               />
             </FormField>
 
-            <FormField 
-              label="SMS API URL" 
+            <FormField
+              label="SMS API URL"
               required={formData.sms_enabled}
               error={errors.sms_api_url}
             >
@@ -404,7 +404,7 @@ function Settings() {
               </div>
             </FormField>
           </div>
-          
+
           <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-700">
               <strong>Note:</strong> Violation notifications to violators are handled automatically by your IoT device.
@@ -448,7 +448,7 @@ function Settings() {
               </div>
             </FormField>
           </div>
-          
+
           <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
             <p className="text-sm text-green-700">
               <strong>IoT Integration:</strong> Your handheld device manages violation processing and notifications automatically.

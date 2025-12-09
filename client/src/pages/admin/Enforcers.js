@@ -14,7 +14,7 @@ const Enforcers = () => {
   const [suggestedBadgeNumber, setSuggestedBadgeNumber] = useState('');
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, enforcer: null });
   const queryClient = useQueryClient();
-  
+
   // Debug authentication
   const token = localStorage.getItem('token');
   console.log('Auth token:', token ? 'Present' : 'Missing');
@@ -27,12 +27,12 @@ const Enforcers = () => {
     retry: 1,
     refetchOnWindowFocus: false
   });
-  
+
   console.log('Query state:', { isLoading, isFetching, error: queryError, hasData: !!enforcersResponse });
 
   // Extract enforcers array from response (API returns data as an array directly)
   const enforcers = Array.isArray(enforcersResponse?.data?.data) ? enforcersResponse?.data?.data : [];
-  
+
   // Debug logging
   console.log('Enforcers API Response:', enforcersResponse);
   console.log('Extracted enforcers:', enforcers);
@@ -62,7 +62,7 @@ const Enforcers = () => {
       fetchNextBadgeNumber();
     }
   }, [showAddModal, editingEnforcer]);
-  
+
 
 
   // Add enforcer mutation
@@ -82,13 +82,13 @@ const Enforcers = () => {
         }
         return oldData;
       });
-      
+
       // Also invalidate to ensure fresh data across pages
       queryClient.invalidateQueries(['enforcers']);
       queryClient.invalidateQueries(['adminDashboard']);
       setShowAddModal(false);
       setFormErrors({});
-      
+
       // Show success message with IoT device login instructions
       const enforcerName = variables.full_name || variables.username;
       toast.success(
@@ -114,8 +114,8 @@ const Enforcers = () => {
         // Don't show general error if we have specific field errors
       } else {
         // Only show general error if no specific field errors
-        setFormErrors({ 
-          general: error.response?.data?.message || error.response?.data?.error || 'Failed to add enforcer. Please check your input and try again.' 
+        setFormErrors({
+          general: error.response?.data?.message || error.response?.data?.error || 'Failed to add enforcer. Please check your input and try again.'
         });
         toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to add enforcer');
       }
@@ -144,7 +144,7 @@ const Enforcers = () => {
         }
         return oldData;
       });
-      
+
       // Also invalidate to ensure fresh data across pages
       queryClient.invalidateQueries(['enforcers']);
       queryClient.invalidateQueries(['adminDashboard']);
@@ -165,8 +165,8 @@ const Enforcers = () => {
         // Don't show general error if we have specific field errors
       } else {
         // Only show general error if no specific field errors
-        setFormErrors({ 
-          general: error.response?.data?.message || error.response?.data?.error || 'Failed to update enforcer. Please check your input and try again.' 
+        setFormErrors({
+          general: error.response?.data?.message || error.response?.data?.error || 'Failed to update enforcer. Please check your input and try again.'
         });
         toast.error(error.response?.data?.message || error.response?.data?.error || 'Failed to update enforcer');
       }
@@ -189,23 +189,23 @@ const Enforcers = () => {
   // Filter enforcers
   const filteredEnforcers = enforcers.filter(enforcer => {
     const matchesSearch = enforcer.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enforcer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         enforcer.badge_number?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'active' && enforcer.is_active) ||
-                         (statusFilter === 'inactive' && !enforcer.is_active);
-    
+      enforcer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      enforcer.badge_number?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && enforcer.is_active) ||
+      (statusFilter === 'inactive' && !enforcer.is_active);
+
     return matchesSearch && matchesStatus;
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    
+
     // Clear previous errors
     setFormErrors({});
-    
+
     // Validate phone number (11 digits for Philippine mobile numbers)
     const phoneNumber = formData.get('phone_number');
     if (phoneNumber) {
@@ -221,7 +221,7 @@ const Enforcers = () => {
         return;
       }
     }
-    
+
     const enforcerData = {
       username: formData.get('username'),
       email: formData.get('email'),
@@ -271,8 +271,8 @@ const Enforcers = () => {
       <div className="text-center py-12">
         <p className="text-red-600 mb-4">Failed to load enforcers</p>
         <p className="text-gray-600 text-sm">{queryError.message}</p>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="mt-4 btn-primary"
         >
           Retry
@@ -415,19 +415,21 @@ const Enforcers = () => {
                     {enforcer.phone_number || 'N/A'}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      enforcer.is_active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${enforcer.is_active
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                      }`}>
                       {enforcer.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {enforcer.last_login 
-                      ? new Date(enforcer.last_login).toLocaleDateString()
-                      : 'Never'
-                    }
+                    {enforcer.last_login
+                      ? (() => {
+                        const sec = enforcer.last_login?._seconds || enforcer.last_login?.seconds;
+                        const date = sec ? new Date(sec * 1000) : new Date(enforcer.last_login);
+                        return date.toLocaleDateString();
+                      })()
+                      : 'Never'}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end gap-2">
@@ -452,7 +454,7 @@ const Enforcers = () => {
             </tbody>
           </table>
         </div>
-        
+
         {filteredEnforcers.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500">No enforcers found</p>
@@ -464,16 +466,16 @@ const Enforcers = () => {
       {(showAddModal || editingEnforcer) && (
         <>
           {/* Backdrop - Full screen coverage */}
-                <div
-        className="fixed bg-transparent z-[9999] inset-0"
-        onClick={() => {
-          setShowAddModal(false);
-          setEditingEnforcer(null);
-          setFormErrors({});
-        }}
-      />
-          
-                    {/* Modal Content */}
+          <div
+            className="fixed bg-transparent z-[9999] inset-0"
+            onClick={() => {
+              setShowAddModal(false);
+              setEditingEnforcer(null);
+              setFormErrors({});
+            }}
+          />
+
+          {/* Modal Content */}
           <div className="fixed inset-0 flex items-start justify-center z-[10000] p-4 pt-12">
             <div className="mobile-modal bg-white rounded-lg shadow-2xl border border-gray-200 p-3 sm:p-4 w-full max-w-2xl">
               <div className="flex items-center justify-between mb-2">
@@ -494,7 +496,7 @@ const Enforcers = () => {
                   </svg>
                 </button>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="space-y-2">
                 {/* General Error Message - only show if no specific field errors */}
                 {formErrors.general && !Object.keys(formErrors).some(key => key !== 'general') && (
@@ -502,7 +504,7 @@ const Enforcers = () => {
                     <p className="text-sm text-red-600">{formErrors.general}</p>
                   </div>
                 )}
-                
+
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Username
@@ -512,15 +514,14 @@ const Enforcers = () => {
                     name="username"
                     defaultValue={editingEnforcer?.username || ''}
                     required
-                    className={`mobile-input ${
-                      formErrors.username ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className={`mobile-input ${formErrors.username ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
                   />
                   {formErrors.username && (
                     <p className="mt-1 responsive-text-sm text-red-600">{formErrors.username}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Email
@@ -531,15 +532,14 @@ const Enforcers = () => {
                     defaultValue={editingEnforcer?.email || ''}
                     required
                     placeholder="enforcer@example.com"
-                    className={`mobile-input ${
-                      formErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className={`mobile-input ${formErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
                   />
                   {formErrors.email && (
                     <p className="mt-1 responsive-text-sm text-red-600">{formErrors.email}</p>
                   )}
                 </div>
-                
+
                 {!editingEnforcer && (
                   <div>
                     <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
@@ -550,16 +550,15 @@ const Enforcers = () => {
                       name="password"
                       required
                       placeholder="Enter a secure password"
-                      className={`mobile-input ${
-                        formErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                      }`}
+                      className={`mobile-input ${formErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                        }`}
                     />
                     {formErrors.password && (
                       <p className="mt-1 responsive-text-sm text-red-600">{formErrors.password}</p>
                     )}
                   </div>
                 )}
-                
+
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Full Name
@@ -569,15 +568,14 @@ const Enforcers = () => {
                     name="full_name"
                     defaultValue={editingEnforcer?.full_name || ''}
                     required
-                    className={`mobile-input ${
-                      formErrors.full_name ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className={`mobile-input ${formErrors.full_name ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
                   />
                   {formErrors.full_name && (
                     <p className="mt-1 responsive-text-sm text-red-600">{formErrors.full_name}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Badge Number
@@ -595,9 +593,8 @@ const Enforcers = () => {
                       key={editingEnforcer ? `edit-${editingEnforcer.id}` : `add-${suggestedBadgeNumber}`}
                       required
                       placeholder={!editingEnforcer ? (suggestedBadgeNumber || 'BADGE001') : ''}
-                      className={`flex-1 mobile-input ${
-                        formErrors.badge_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                      }`}
+                      className={`flex-1 mobile-input ${formErrors.badge_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                        }`}
                     />
                     {!editingEnforcer && (
                       <button
@@ -614,7 +611,7 @@ const Enforcers = () => {
                     <p className="mt-1 responsive-text-sm text-red-600">{formErrors.badge_number}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Phone Number
@@ -627,15 +624,14 @@ const Enforcers = () => {
                     pattern="09[0-9]{9}"
                     placeholder="09123456789"
                     maxLength="11"
-                    className={`mobile-input ${
-                      formErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className={`mobile-input ${formErrors.phone_number ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
                   />
                   {formErrors.phone_number && (
                     <p className="mt-1 responsive-text-sm text-red-600">{formErrors.phone_number}</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block responsive-text-sm font-medium text-gray-700 mb-1">
                     Status
@@ -643,9 +639,8 @@ const Enforcers = () => {
                   <select
                     name="is_active"
                     defaultValue={editingEnforcer ? editingEnforcer.is_active.toString() : 'true'}
-                    className={`mobile-select ${
-                      formErrors.is_active ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
-                    }`}
+                    className={`mobile-select ${formErrors.is_active ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+                      }`}
                   >
                     <option value="true">Active</option>
                     <option value="false">Inactive</option>
@@ -654,7 +649,7 @@ const Enforcers = () => {
                     <p className="mt-1 responsive-text-sm text-red-600">{formErrors.is_active}</p>
                   )}
                 </div>
-                
+
                 <div className="mobile-button-group pt-4">
                   <button
                     type="submit"

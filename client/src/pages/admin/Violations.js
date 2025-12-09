@@ -23,9 +23,10 @@ const VIOLATION_TYPES = [
 const parseDisplayDate = (dateValue) => {
   if (!dateValue) return new Date();
 
-  // Handle Firebase Timestamp
-  if (dateValue?.seconds) {
-    return new Date(dateValue.seconds * 1000);
+  // Handle Firebase Timestamp (with or without underscore)
+  if (dateValue?.seconds || dateValue?._seconds) {
+    const seconds = dateValue.seconds || dateValue._seconds;
+    return new Date(seconds * 1000);
   }
 
   // Handle Date object
@@ -156,7 +157,7 @@ const Violations = () => {
   });
 
   // Extract enforcers from response
-  const enforcers = enforcersData?.data?.data?.enforcers || [];
+  const enforcers = enforcersData?.data?.data || [];
 
   // Extract data from response
   const data = violationsResponse?.data?.data;
@@ -306,7 +307,7 @@ const Violations = () => {
           violation.violator_name,
           violation.vehicle_plate,
           violation.violation_type,
-          `₱${parseFloat(violation.fine_amount).toFixed(2)}`,
+          `₱${parseFloat(violation.fine_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           violation.status,
           `${violation.enforcer_name}\n${violation.enforcer_badge}`,
           violation.location,
@@ -397,12 +398,26 @@ const Violations = () => {
     });
   };
 
-  const handlePrintReceipt = (violation) => {
+  const handlePrintReceipt = async (violation) => {
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
 
     // Parse the violation date for display
     const violationDate = parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at);
+
+    // Get logo as base64
+    let logoDataUrl = '';
+    try {
+      const response = await fetch('/logo2.png');
+      const blob = await response.blob();
+      logoDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to load logo:', error);
+    }
 
     // Generate the receipt HTML
     const receiptHTML = `
@@ -423,6 +438,12 @@ const Violations = () => {
             border-bottom: 2px solid #333;
             padding-bottom: 10px;
             margin-bottom: 20px;
+          }
+          .header img.logo {
+            max-width: 120px;
+            height: auto;
+            margin: 0 auto 15px auto;
+            display: block;
           }
           .header h1 {
             margin: 0;
@@ -487,6 +508,7 @@ const Violations = () => {
       </head>
       <body>
         <div class="header">
+          ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo" class="logo" />` : ''}
           <h1>e-Traffic Violation System</h1>
           <p>Official Violation Receipt</p>
           <p>Generated: ${new Date().toLocaleDateString()}</p>
@@ -893,17 +915,11 @@ const Violations = () => {
               </label>
               <input
                 type="text"
-                list="violation-types"
                 className="block w-full px-3 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm sm:text-base transition-colors duration-200"
                 placeholder="Search violation types..."
                 value={filters.violation_type}
                 onChange={(e) => handleFilterChange('violation_type', e.target.value)}
               />
-              <datalist id="violation-types">
-                {VIOLATION_TYPES.map((type) => (
-                  <option key={type} value={type} />
-                ))}
-              </datalist>
             </div>
 
             {/* Repeat offender filter */}

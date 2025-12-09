@@ -1,11 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { reportsAPI } from '../../services/api';
 import toast, { Toaster } from 'react-hot-toast';
-import { 
-  Download, 
-  FileText, 
-  Users, 
-  TrendingUp, 
+import {
+  Download,
+  FileText,
+  Users,
+  TrendingUp,
   Calendar,
   BarChart3,
   PieChart,
@@ -43,7 +43,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
     warning: 'linear-gradient(135deg, #FFE4B5 0%, #FFF2D6 100%)', // Light peach
     info: 'linear-gradient(135deg, #D4EDDA 0%, #E9F7EF 100%)'      // Light green
   };
-  
+
   const iconColors = {
     primary: '#3B82F6',   // Blue
     success: '#8B5CF6',  // Purple
@@ -52,7 +52,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
   };
 
   return (
-    <div 
+    <div
       className="group relative overflow-hidden bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer touch-target"
       onClick={onClick}
       style={{ background: backgroundColors[color] || backgroundColors.primary }}
@@ -64,7 +64,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
           <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 rounded-2xl bg-white/20 backdrop-blur-sm group-hover:bg-white/30 transition-all duration-300 border border-white/30">
             <Icon className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 transition-colors duration-300" style={{ color: iconColors[color] || iconColors.primary }} />
           </div>
-          
+
           {/* Text content */}
           <div className="flex-1 min-w-0">
             <h3 className="responsive-text-lg font-semibold text-gray-900 mb-2 sm:mb-3 group-hover:text-gray-800 transition-colors duration-300">
@@ -74,7 +74,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
               {description}
             </p>
           </div>
-          
+
           {/* Arrow indicator */}
           <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
             <div className="p-1.5 sm:p-2 rounded-full bg-white/30 backdrop-blur-sm" style={{ color: iconColors[color] || iconColors.primary }}>
@@ -84,7 +84,7 @@ const ReportCard = ({ title, description, icon: Icon, onClick, color = 'primary'
             </div>
           </div>
         </div>
-        
+
         {/* Bottom accent line */}
         <div className="absolute bottom-0 left-0 right-0 h-1 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left" style={{ background: iconColors[color] || iconColors.primary }}></div>
       </div>
@@ -151,7 +151,7 @@ const ViolationsReport = ({ filters, setFilters }) => {
       setError('Please select both start and end dates');
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
     try {
@@ -159,7 +159,7 @@ const ViolationsReport = ({ filters, setFilters }) => {
         start_date: filters.startDate,
         end_date: filters.endDate
       });
-      
+
       if (response.data.success) {
         setReportData(response.data.data);
         setLastRefresh(new Date());
@@ -176,13 +176,13 @@ const ViolationsReport = ({ filters, setFilters }) => {
 
   const exportReport = (format) => {
     if (!reportData) return;
-    
-    // Helper function to escape special characters in PDF text
+
+    // Helper function to ensure text is string for PDF
     const escapePdfText = (text) => {
       if (typeof text !== 'string') return text;
-      return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+      return text;
     };
-    
+
     if (format === 'json') {
       const dataStr = JSON.stringify(reportData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -196,16 +196,16 @@ const ViolationsReport = ({ filters, setFilters }) => {
       // Generate PDF using jsPDF
       const { jsPDF } = window.jspdf || require('jspdf');
       window.jspdfAutoTable || require('jspdf-autotable');
-      
+
       const doc = new jsPDF();
       doc.setFont('helvetica');
-      
+
       // Add title
       doc.setFontSize(18);
       doc.text(escapePdfText('Violations Report'), 14, 20);
       doc.setFontSize(12);
       doc.text(escapePdfText(`Period: ${filters.startDate} to ${filters.endDate}`), 14, 30);
-      
+
       // Add summary data
       const summary = reportData.summary;
       doc.setFontSize(14);
@@ -215,7 +215,7 @@ const ViolationsReport = ({ filters, setFilters }) => {
       doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
       doc.text(escapePdfText(`Pending Fines: ₱${parseFloat(summary.pending_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 75);
       doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 14, 85);
-      
+
       // Add violations table
       doc.autoTable({
         startY: 95,
@@ -227,13 +227,13 @@ const ViolationsReport = ({ filters, setFilters }) => {
           escapePdfText(violation.status),
           escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge}`),
           escapePdfText(violation.location),
-          escapePdfText(new Date(violation.created_at).toLocaleDateString())
+          escapePdfText((() => { const ts = violation.captured_at || violation.created_at; const sec = ts?._seconds || ts?.seconds; return (sec ? new Date(sec * 1000) : new Date(ts)).toLocaleDateString(); })())
         ]),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [22, 160, 133] },
         margin: { top: 10 }
       });
-      
+
       // Save the PDF
       doc.save(`violations-report-${filters.startDate}-to-${filters.endDate}.pdf`);
     }
@@ -308,17 +308,17 @@ const ViolationsReport = ({ filters, setFilters }) => {
                       <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                </div>
-                </div>
+                    </div>
+                  </div>
                   <p className="text-3xl font-bold text-blue-900">{reportData.summary?.total_violations || 0}</p>
                   <div className="mt-2 flex items-center text-sm text-blue-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                     <span>Total recorded</span>
+                  </div>
                 </div>
-                </div>
-                
+
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-green-700 uppercase tracking-wide">Total Fines</h4>
@@ -328,14 +328,14 @@ const ViolationsReport = ({ filters, setFilters }) => {
                       </svg>
                     </div>
                   </div>
-                  <p className="text-3xl font-bold text-green-900">₱{(reportData.summary?.total_fines || 0).toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-green-900">₱{(reportData.summary?.total_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <div className="mt-2 flex items-center text-sm text-green-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                     </svg>
                     <span>Amount issued</span>
+                  </div>
                 </div>
-              </div>
 
                 <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 rounded-2xl border border-yellow-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
@@ -344,9 +344,9 @@ const ViolationsReport = ({ filters, setFilters }) => {
                       <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                  </div>
                     </div>
-                  <p className="text-3xl font-bold text-yellow-900">₱{(reportData.summary?.pending_fines || 0).toFixed(2)}</p>
+                  </div>
+                  <p className="text-3xl font-bold text-yellow-900">₱{(reportData.summary?.pending_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <div className="mt-2 flex items-center text-sm text-yellow-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -362,8 +362,8 @@ const ViolationsReport = ({ filters, setFilters }) => {
                       <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
-                  </div>
                     </div>
+                  </div>
                   <p className="text-3xl font-bold text-purple-900">{reportData.summary?.collection_rate || 0}%</p>
                   <div className="mt-2 flex items-center text-sm text-purple-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -414,13 +414,12 @@ const ViolationsReport = ({ filters, setFilters }) => {
                                 {violation.violation_type}
                               </span>
                             </td>
-                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toFixed(2)}</td>
+                            <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                violation.status === 'paid' ? 'bg-green-100 text-green-800' :
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${violation.status === 'paid' ? 'bg-green-100 text-green-800' :
                                 violation.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
+                                  'bg-red-100 text-red-800'
+                                }`}>
                                 {violation.status}
                               </span>
                             </td>
@@ -428,10 +427,10 @@ const ViolationsReport = ({ filters, setFilters }) => {
                             <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                               <div>
                                 <div className="font-medium text-gray-900">
-                                  {new Date(violation.created_at).toLocaleDateString()}
+                                  {(() => { const ts = violation.captured_at || violation.created_at; const sec = ts?._seconds || ts?.seconds; return (sec ? new Date(sec * 1000) : new Date(ts)).toLocaleDateString(); })()}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  {new Date(violation.created_at).toLocaleTimeString()}
+                                  {(() => { const ts = violation.captured_at || violation.created_at; const sec = ts?._seconds || ts?.seconds; return (sec ? new Date(sec * 1000) : new Date(ts)).toLocaleTimeString(); })()}
                                 </div>
                               </div>
                             </td>
@@ -467,7 +466,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
       setError('Please select both start and end dates');
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
     try {
@@ -475,7 +474,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
         start_date: filters.startDate,
         end_date: filters.endDate
       });
-      
+
       if (response.data.success) {
         setReportData(response.data.data);
         setLastRefresh(new Date());
@@ -492,13 +491,13 @@ const EnforcersReport = ({ filters, setFilters }) => {
 
   const exportReport = (format) => {
     if (!reportData) return;
-    
+
     // Helper function to escape special characters in PDF text
     const escapePdfText = (text) => {
       if (typeof text !== 'string') return text;
       return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
     };
-    
+
     if (format === 'json') {
       const dataStr = JSON.stringify(reportData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -512,16 +511,16 @@ const EnforcersReport = ({ filters, setFilters }) => {
       // Generate PDF using jsPDF
       const { jsPDF } = window.jspdf || require('jspdf');
       window.jspdfAutoTable || require('jspdf-autotable');
-      
+
       const doc = new jsPDF();
       doc.setFont('helvetica');
-      
+
       // Add title
       doc.setFontSize(18);
       doc.text(escapePdfText('Enforcers Performance Report'), 14, 20);
       doc.setFontSize(12);
       doc.text(escapePdfText(`Period: ${filters.startDate} to ${filters.endDate}`), 14, 30);
-      
+
       // Add summary data
       const summary = reportData.summary;
       doc.setFontSize(14);
@@ -533,7 +532,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
       doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 85);
       doc.text(escapePdfText(`Collected Fines: ₱${parseFloat(summary.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 95);
       doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 14, 105);
-      
+
       // Add enforcers performance table
       doc.autoTable({
         startY: 115,
@@ -550,7 +549,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
         headStyles: { fillColor: [22, 160, 133] },
         margin: { top: 10 }
       });
-      
+
       // Save the PDF
       doc.save(`enforcers-report-${filters.startDate}-to-${filters.endDate}.pdf`);
     }
@@ -635,7 +634,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
                     <span>Active personnel</span>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-green-700 uppercase tracking-wide">Total Violations</h4>
@@ -663,7 +662,7 @@ const EnforcersReport = ({ filters, setFilters }) => {
                       </svg>
                     </div>
                   </div>
-                  <p className="text-3xl font-bold text-yellow-900">₱{(reportData.summary?.total_fines || 0).toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-yellow-900">₱{(reportData.summary?.total_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <div className="mt-2 flex items-center text-sm text-yellow-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -722,25 +721,25 @@ const EnforcersReport = ({ filters, setFilters }) => {
                     <div className="p-4 sm:p-6">
                       <div className="mobile-chart-container">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={(reportData.enforcers || []).filter(item => 
-                            item && typeof item === 'object' && 
-                            typeof item.total_violations === 'number' && 
+                          <BarChart data={(reportData.enforcers || []).filter(item =>
+                            item && typeof item === 'object' &&
+                            typeof item.total_violations === 'number' &&
                             typeof item.collected_fines === 'number'
                           )}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis 
-                              dataKey="full_name" 
+                            <XAxis
+                              dataKey="full_name"
                               tick={{ fontSize: 10, fill: '#64748b' }}
                               axisLine={{ stroke: '#e2e8f0' }}
                               angle={-45}
                               textAnchor="end"
                               height={60}
                             />
-                            <YAxis 
+                            <YAxis
                               tick={{ fontSize: 10, fill: '#64748b' }}
                               axisLine={{ stroke: '#e2e8f0' }}
                             />
-                            <Tooltip 
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: 'white',
                                 border: '1px solid #e2e8f0',
@@ -749,15 +748,15 @@ const EnforcersReport = ({ filters, setFilters }) => {
                                 fontSize: '12px'
                               }}
                             />
-                            <Bar 
-                              dataKey="total_violations" 
-                              fill="#3b82f6" 
+                            <Bar
+                              dataKey="total_violations"
+                              fill="#3b82f6"
                               name="Violations Issued"
                               radius={[4, 4, 0, 0]}
                             />
-                            <Bar 
-                              dataKey="collected_fines" 
-                              fill="#10b981" 
+                            <Bar
+                              dataKey="collected_fines"
+                              fill="#10b981"
                               name="Fines Collected"
                               radius={[4, 4, 0, 0]}
                             />
@@ -832,17 +831,16 @@ const EnforcersReport = ({ filters, setFilters }) => {
                                 {enforcer.total_violations || 0}
                               </td>
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
-                                ₱{(enforcer.total_fines || 0).toFixed(2)}
+                                ₱{(enforcer.total_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
-                                ₱{(enforcer.collected_fines || 0).toFixed(2)}
+                                ₱{(enforcer.collected_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </td>
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap">
-                                <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-xs font-semibold ${
-                                  (enforcer.collection_rate || 0) >= 80 ? 'bg-green-100 text-green-800' :
+                                <span className={`inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full text-xs font-semibold ${(enforcer.collection_rate || 0) >= 80 ? 'bg-green-100 text-green-800' :
                                   (enforcer.collection_rate || 0) >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
+                                    'bg-red-100 text-red-800'
+                                  }`}>
                                   {(enforcer.collection_rate || 0).toFixed(1)}%
                                 </span>
                               </td>
@@ -880,7 +878,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
       const response = await reportsAPI.getDailySummary({
         date: filters.date || new Date().toISOString().split('T')[0]
       });
-      
+
       if (response.data.success) {
         setReportData(response.data.data);
       } else {
@@ -896,27 +894,27 @@ const DailySummaryReport = ({ filters, setFilters }) => {
 
   const exportReport = (format) => {
     if (!reportData) return;
-    
+
     // Helper function to escape special characters in PDF text
     const escapePdfText = (text) => {
       if (typeof text !== 'string') return text;
       return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
     };
-    
+
     if (format === 'pdf') {
       // Generate PDF using jsPDF
       const { jsPDF } = window.jspdf || require('jspdf');
       window.jspdfAutoTable || require('jspdf-autotable');
-      
+
       const doc = new jsPDF();
       doc.setFont('helvetica');
-      
+
       // Add title
       doc.setFontSize(18);
       doc.text(escapePdfText('Daily Summary Report'), 14, 20);
       doc.setFontSize(12);
       doc.text(escapePdfText(`Date: ${filters.date || new Date().toISOString().split('T')[0]}`), 14, 30);
-      
+
       // Add summary data
       const summary = reportData.summary;
       doc.setFontSize(14);
@@ -926,7 +924,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
       doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
       doc.text(escapePdfText(`Active Enforcers: ${summary.active_enforcers}`), 14, 75);
       doc.text(escapePdfText(`Avg per Enforcer: ${summary.avg_violations_per_enforcer}`), 14, 85);
-      
+
       // Add violations by type table if data exists
       if (reportData.violations_by_type && reportData.violations_by_type.length > 0) {
         doc.autoTable({
@@ -941,7 +939,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
           margin: { top: 10 }
         });
       }
-      
+
       // Add recent violations table if data exists
       if (reportData.recent_violations && reportData.recent_violations.length > 0) {
         const finalY = doc.lastAutoTable?.finalY || 130;
@@ -949,7 +947,11 @@ const DailySummaryReport = ({ filters, setFilters }) => {
           startY: finalY + 10,
           head: [[escapePdfText('Time'), escapePdfText('Violator'), escapePdfText('License'), escapePdfText('Type'), escapePdfText('Fine'), escapePdfText('Enforcer'), escapePdfText('Location')]],
           body: reportData.recent_violations.map(violation => [
-            escapePdfText(new Date(violation.created_at).toLocaleTimeString()),
+            escapePdfText((() => {
+              const ts = violation.captured_at || violation.created_at;
+              const sec = ts?._seconds || ts?.seconds;
+              return (sec ? new Date(sec * 1000) : new Date(ts)).toLocaleTimeString();
+            })()),
             escapePdfText(violation.violator_name),
             escapePdfText(violation.violator_license || '-'),
             escapePdfText(violation.violation_type),
@@ -962,7 +964,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
           margin: { top: 10 }
         });
       }
-      
+
       // Save the PDF
       doc.save(`daily-summary-report-${filters.date || new Date().toISOString().split('T')[0]}.pdf`);
     }
@@ -1042,7 +1044,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     <span>Total recorded</span>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-green-700 uppercase tracking-wide">Total Fines</h4>
@@ -1052,7 +1054,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                       </svg>
                     </div>
                   </div>
-                  <p className="text-3xl font-bold text-green-900">₱{reportData.summary.total_fines.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-green-900">₱{reportData.summary.total_fines.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <div className="mt-2 flex items-center text-sm text-green-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -1098,7 +1100,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                 </div>
               </div>
 
-                            {/* Violations by Type Chart */}
+              {/* Violations by Type Chart */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                   <div className="px-4 sm:px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-gray-100">
@@ -1135,7 +1137,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                               ))}
                             </Pie>
-                            <Tooltip 
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: 'white',
                                 border: '1px solid #e2e8f0',
@@ -1146,10 +1148,10 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                               formatter={(value, name, props) => [value, 'Count']}
                               labelFormatter={(label) => `Type: ${label}`}
                             />
-                            <Legend 
-                              layout="horizontal" 
-                              verticalAlign="bottom" 
-                              align="center" 
+                            <Legend
+                              layout="horizontal"
+                              verticalAlign="bottom"
+                              align="center"
                               wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                             />
                           </RechartsPieChart>
@@ -1177,7 +1179,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                     ) : (
                       <div className="mobile-chart-container">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart 
+                          <BarChart
                             data={reportData.violations_by_enforcer
                               .slice() // Create a copy of the array
                               .sort((a, b) => b.violations_count - a.violations_count) // Sort by violations_count descending
@@ -1187,8 +1189,8 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                             barCategoryGap="15%"
                           >
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                            <XAxis 
-                              dataKey="full_name" 
+                            <XAxis
+                              dataKey="full_name"
                               tick={{ fontSize: 10, fill: '#64748b' }}
                               axisLine={{ stroke: '#e2e8f0' }}
                               angle={-45}
@@ -1196,12 +1198,12 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                               height={70}
                               interval={0}
                             />
-                            <YAxis 
+                            <YAxis
                               tick={{ fontSize: 10, fill: '#64748b' }}
                               axisLine={{ stroke: '#e2e8f0' }}
                               tickFormatter={(value) => Number.isInteger(value) ? value : ''}
                             />
-                            <Tooltip 
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: 'white',
                                 border: '1px solid #e2e8f0',
@@ -1210,14 +1212,14 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                 fontSize: '12px'
                               }}
                               formatter={(value, name, props) => [
-                                `${value} violations`, 
+                                `${value} violations`,
                                 'Performance'
                               ]}
                               labelFormatter={(label) => `Enforcer: ${label}`}
                               itemSorter={() => -1}
                             />
-                            <Bar 
-                              dataKey="violations_count" 
+                            <Bar
+                              dataKey="violations_count"
                               name="Violations"
                               radius={[4, 4, 0, 0]}
                               barSize={20}
@@ -1227,21 +1229,21 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                 .sort((a, b) => b.violations_count - a.violations_count) // Sort by violations_count descending
                                 .slice(0, 10) // Take only top 10 enforcers
                                 .map((entry, index) => (
-                                  <Cell 
-                                    key={`cell-${index}`} 
+                                  <Cell
+                                    key={`cell-${index}`}
                                     fill={
                                       index === 0 ? '#10B981' : // Top performer - green
-                                      index === 1 ? '#3B82F6' : // Second - blue
-                                      index === 2 ? '#8B5CF6' : // Third - purple
-                                      '#94A3B8' // Others - gray
+                                        index === 1 ? '#3B82F6' : // Second - blue
+                                          index === 2 ? '#8B5CF6' : // Third - purple
+                                            '#94A3B8' // Others - gray
                                     }
                                   />
                                 ))
                               }
-                              <LabelList 
-                                dataKey="violations_count" 
-                                position="top" 
-                                style={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }} 
+                              <LabelList
+                                dataKey="violations_count"
+                                position="top"
+                                style={{ fill: '#64748b', fontSize: 12, fontWeight: 'bold' }}
                                 formatter={(value) => Number.isInteger(value) ? value : ''}
                               />
                             </Bar>
@@ -1326,7 +1328,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                           reportData.recent_violations.map((violation, index) => (
                             <tr key={index} className="table-row">
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                                {new Date(violation.created_at).toLocaleTimeString()}
+                                {(() => { const ts = violation.captured_at || violation.created_at; const sec = ts?._seconds || ts?.seconds; return (sec ? new Date(sec * 1000) : new Date(ts)).toLocaleTimeString(); })()}
                               </td>
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">
                                 <div>
@@ -1343,7 +1345,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
                                   {violation.violation_type}
                                 </span>
                               </td>
-                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toFixed(2)}</td>
+                              <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900 font-medium">₱{parseFloat(violation.fine_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               <td className="px-3 sm:px-6 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                                 <div>
                                   <div className="font-medium text-gray-900">{violation.enforcer_name}</div>
@@ -1380,7 +1382,7 @@ const MonthlyReport = ({ filters, setFilters }) => {
         year: filters.year || new Date().getFullYear(),
         month: filters.month || new Date().getMonth() + 1
       });
-      
+
       if (response.data.success) {
         setReportData(response.data.data);
       } else {
@@ -1473,7 +1475,7 @@ const MonthlyReport = ({ filters, setFilters }) => {
                     <span>Total recorded</span>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-sm font-semibold text-green-700 uppercase tracking-wide">Total Fines</h4>
@@ -1483,7 +1485,7 @@ const MonthlyReport = ({ filters, setFilters }) => {
                       </svg>
                     </div>
                   </div>
-                  <p className="text-3xl font-bold text-green-900">₱{reportData.summary.total_fines.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-green-900">₱{reportData.summary.total_fines.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <div className="mt-2 flex items-center text-sm text-green-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -1501,7 +1503,7 @@ const MonthlyReport = ({ filters, setFilters }) => {
                       </svg>
                     </div>
                   </div>
-                  <p className="text-3xl font-bold text-yellow-900">₱{reportData.summary.paid_fines.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-yellow-900">₱{reportData.summary.paid_fines.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                   <div className="mt-2 flex items-center text-sm text-yellow-600">
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -1550,19 +1552,19 @@ const MonthlyReport = ({ filters, setFilters }) => {
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={reportData.daily_breakdown}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis 
-                            dataKey="date" 
+                          <XAxis
+                            dataKey="date"
                             tick={{ fontSize: 10, fill: '#64748b' }}
                             axisLine={{ stroke: '#e2e8f0' }}
                             angle={-45}
                             textAnchor="end"
                             height={60}
                           />
-                          <YAxis 
+                          <YAxis
                             tick={{ fontSize: 10, fill: '#64748b' }}
                             axisLine={{ stroke: '#e2e8f0' }}
                           />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #e2e8f0',
@@ -1571,12 +1573,12 @@ const MonthlyReport = ({ filters, setFilters }) => {
                               fontSize: '12px'
                             }}
                           />
-                          <Area 
-                            type="monotone" 
-                            dataKey="violations_count" 
-                            stroke="#3b82f6" 
-                            fill="#3b82f6" 
-                            fillOpacity={0.3} 
+                          <Area
+                            type="monotone"
+                            dataKey="violations_count"
+                            stroke="#3b82f6"
+                            fill="#3b82f6"
+                            fillOpacity={0.3}
                           />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -1620,7 +1622,7 @@ const MonthlyReport = ({ filters, setFilters }) => {
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                               ))}
                             </Pie>
-                            <Tooltip 
+                            <Tooltip
                               contentStyle={{
                                 backgroundColor: 'white',
                                 border: '1px solid #e2e8f0',
@@ -1657,9 +1659,9 @@ const MonthlyReport = ({ filters, setFilters }) => {
                       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl border border-purple-200 gap-2">
                         <span className="text-xs sm:text-sm font-semibold text-purple-700 uppercase tracking-wide">Peak Day</span>
                         <span className="text-lg sm:text-2xl font-bold text-purple-900">
-                          {(reportData.daily_breakdown || []).reduce((max, day) => 
+                          {(reportData.daily_breakdown || []).reduce((max, day) =>
                             day.violations_count > max.violations_count ? day : max
-                          , { violations_count: 0 }).date}
+                            , { violations_count: 0 }).date}
                         </span>
                       </div>
                     </div>
@@ -1797,18 +1799,18 @@ const Reports = () => {
             <h2 className="responsive-text-2xl font-semibold text-gray-800 mb-2">Choose Your Report Type</h2>
             <p className="responsive-text-sm text-gray-500">Select from our comprehensive suite of analytical reports</p>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
-          {reportTypes.map((report) => (
-            <ReportCard
-              key={report.id}
-              title={report.title}
-              description={report.description}
-              icon={report.icon}
-              color={report.color}
-              onClick={() => handleReportSelect(report.id)}
-            />
-          ))}
+            {reportTypes.map((report) => (
+              <ReportCard
+                key={report.id}
+                title={report.title}
+                description={report.description}
+                icon={report.icon}
+                color={report.color}
+                onClick={() => handleReportSelect(report.id)}
+              />
+            ))}
           </div>
         </div>
       ) : (
@@ -1816,14 +1818,14 @@ const Reports = () => {
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white rounded-xl mobile-card shadow-sm border border-gray-100 gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <button
-              onClick={() => setActiveReport(null)}
+              <button
+                onClick={() => setActiveReport(null)}
                 className="mobile-btn-secondary flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors w-full sm:w-auto"
-            >
+              >
                 <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Back to Reports</span>
-              <span className="sm:hidden">Back</span>
-            </button>
+                <span className="hidden sm:inline">Back to Reports</span>
+                <span className="sm:hidden">Back</span>
+              </button>
               <div className="hidden sm:block h-6 w-px bg-gray-200"></div>
               <div className="text-center sm:text-left">
                 <h2 className="responsive-text-xl font-semibold text-gray-900">

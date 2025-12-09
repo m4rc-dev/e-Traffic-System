@@ -130,7 +130,7 @@ const StatusBadge = ({ status }) => {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  
+
   const { data: dashboardResponse, isLoading, error } = useQuery({
     queryKey: ['adminDashboard'],
     queryFn: adminAPI.getDashboard,
@@ -164,7 +164,7 @@ const AdminDashboard = () => {
 
   // Use real data from database - single source for both charts
   const monthlyData = data?.monthlyData || [];
-  
+
   // Prepare violations trend data (counts and total fines issued)
   const trendData = monthlyData.map(item => ({
     month: item.month,
@@ -197,7 +197,7 @@ const AdminDashboard = () => {
     // Ensure amount is a number
     const numAmount = parseFloat(amount) || 0;
     if (numAmount === 0) return '₱0.00';
-    return `₱${numAmount.toFixed(2)}`;
+    return `₱${numAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   return (
@@ -261,11 +261,11 @@ const AdminDashboard = () => {
           <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-purple-50">
             <div className="flex items-center justify-between">
               <div>
-            <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-indigo-600" />
-              Violations Trend
-            </h4>
-            <p className="text-sm text-gray-600 mt-1">Monthly violation patterns and trends</p>
+                  Violations Trend
+                </h4>
+                <p className="text-sm text-gray-600 mt-1">Monthly violation patterns and trends</p>
               </div>
               {trendData.length > 0 && (
                 <div className="flex items-center gap-4 text-xs">
@@ -287,63 +287,63 @@ const AdminDashboard = () => {
             <div className="mobile-chart-container" style={{ minHeight: '300px' }}>
               {trendData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart 
+                  <AreaChart
                     data={trendData}
                     margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                   >
                     <defs>
                       <linearGradient id="colorViolations" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
-                        <stop offset="50%" stopColor="#6366f1" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                        <stop offset="50%" stopColor="#6366f1" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
                       </linearGradient>
                       <linearGradient id="colorFines" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                        <stop offset="50%" stopColor="#059669" stopOpacity={0.6}/>
-                        <stop offset="95%" stopColor="#047857" stopOpacity={0.1}/>
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                        <stop offset="50%" stopColor="#059669" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#047857" stopOpacity={0.1} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="#e2e8f0" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#e2e8f0"
                       strokeOpacity={0.6}
                     />
-                    <XAxis 
-                      dataKey="month" 
+                    <XAxis
+                      dataKey="month"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ 
-                        fill: '#64748b', 
+                      tick={{
+                        fill: '#64748b',
                         fontSize: 11,
                         fontWeight: 500
                       }}
                       tickFormatter={(value) => {
                         const date = new Date(value);
-                        return date.toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          year: '2-digit' 
+                        return date.toLocaleDateString('en-US', {
+                          month: 'short',
+                          year: '2-digit'
                         });
                       }}
                     />
-                    <YAxis 
+                    <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ 
-                        fill: '#64748b', 
+                      tick={{
+                        fill: '#64748b',
                         fontSize: 11,
                         fontWeight: 500
                       }}
                       tickFormatter={(value) => value.toString()}
                     />
-                    <Tooltip 
+                    <Tooltip
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
                           return (
                             <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
                               <p className="font-semibold text-gray-900 mb-2">
-                                {new Date(label).toLocaleDateString('en-US', { 
-                                  month: 'long', 
-                                  year: 'numeric' 
+                                {new Date(label).toLocaleDateString('en-US', {
+                                  month: 'long',
+                                  year: 'numeric'
                                 })}
                               </p>
                               <div className="space-y-1">
@@ -370,43 +370,43 @@ const AdminDashboard = () => {
                         return null;
                       }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="violations" 
-                      stroke="#6366f1" 
+                    <Area
+                      type="monotone"
+                      dataKey="violations"
+                      stroke="#6366f1"
                       strokeWidth={3}
                       fill="url(#colorViolations)"
                       fillOpacity={0.6}
-                      dot={{ 
-                        fill: '#6366f1', 
-                        strokeWidth: 2, 
+                      dot={{
+                        fill: '#6366f1',
+                        strokeWidth: 2,
                         stroke: '#ffffff',
                         r: 4
                       }}
-                      activeDot={{ 
-                        r: 6, 
-                        stroke: '#6366f1', 
+                      activeDot={{
+                        r: 6,
+                        stroke: '#6366f1',
                         strokeWidth: 2,
                         fill: '#ffffff'
                       }}
                     />
                     {trendData.some(item => item.fines > 0) && (
-                      <Area 
-                        type="monotone" 
-                        dataKey="fines" 
-                        stroke="#10b981" 
+                      <Area
+                        type="monotone"
+                        dataKey="fines"
+                        stroke="#10b981"
                         strokeWidth={2}
                         fill="url(#colorFines)"
                         fillOpacity={0.4}
-                        dot={{ 
-                          fill: '#10b981', 
-                          strokeWidth: 2, 
+                        dot={{
+                          fill: '#10b981',
+                          strokeWidth: 2,
                           stroke: '#ffffff',
                           r: 3
                         }}
-                        activeDot={{ 
-                          r: 5, 
-                          stroke: '#10b981', 
+                        activeDot={{
+                          r: 5,
+                          stroke: '#10b981',
                           strokeWidth: 2,
                           fill: '#ffffff'
                         }}
@@ -419,8 +419,8 @@ const AdminDashboard = () => {
                   <div className="text-center text-gray-500">
                     <div className="relative">
                       <svg className="mx-auto h-16 w-16 text-gray-300 mb-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
                     </div>
                     <p className="text-lg font-medium text-gray-900 mb-2">No Data Available</p>
@@ -463,15 +463,15 @@ const AdminDashboard = () => {
                       }}
                     >
                       {statusData.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
+                        <Cell
+                          key={`cell-${index}`}
                           fill={COLORS[index % COLORS.length]}
                           stroke="#ffffff"
                           strokeWidth={2}
                         />
                       ))}
                     </Pie>
-                    <Tooltip 
+                    <Tooltip
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0];
@@ -513,11 +513,11 @@ const AdminDashboard = () => {
         <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-blue-50">
           <div className="flex items-center justify-between">
             <div>
-          <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-emerald-600" />
-            Fines Collection Trend
-          </h4>
-          <p className="text-sm text-gray-600 mt-1">Monthly fine collection patterns</p>
+                Fines Collection Trend
+              </h4>
+              <p className="text-sm text-gray-600 mt-1">Monthly fine collection patterns</p>
             </div>
             {finesTrendData.length > 0 && (
               <div className="flex items-center gap-4 text-xs">
@@ -537,63 +537,63 @@ const AdminDashboard = () => {
           <div className="mobile-chart-container" style={{ minHeight: '300px' }}>
             {finesTrendData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart 
+                <AreaChart
                   data={finesTrendData}
                   margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
                 >
                   <defs>
                     <linearGradient id="colorCollectedFines" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                      <stop offset="50%" stopColor="#059669" stopOpacity={0.6}/>
-                      <stop offset="95%" stopColor="#047857" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                      <stop offset="50%" stopColor="#059669" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="#047857" stopOpacity={0.1} />
                     </linearGradient>
                     <linearGradient id="colorTotalFines" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                      <stop offset="50%" stopColor="#2563eb" stopOpacity={0.6}/>
-                      <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="50%" stopColor="#2563eb" stopOpacity={0.6} />
+                      <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0.1} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid 
-                    strokeDasharray="3 3" 
-                    stroke="#e2e8f0" 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e2e8f0"
                     strokeOpacity={0.6}
                   />
-                  <XAxis 
-                    dataKey="month" 
+                  <XAxis
+                    dataKey="month"
                     axisLine={false}
                     tickLine={false}
-                    tick={{ 
-                      fill: '#64748b', 
+                    tick={{
+                      fill: '#64748b',
                       fontSize: 11,
                       fontWeight: 500
                     }}
                     tickFormatter={(value) => {
                       const date = new Date(value);
-                      return date.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        year: '2-digit' 
+                      return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        year: '2-digit'
                       });
                     }}
                   />
-                  <YAxis 
+                  <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ 
-                      fill: '#64748b', 
+                    tick={{
+                      fill: '#64748b',
                       fontSize: 11,
                       fontWeight: 500
                     }}
                     tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}k`}
                   />
-                  <Tooltip 
+                  <Tooltip
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         return (
                           <div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200">
                             <p className="font-semibold text-gray-900 mb-2">
-                              {new Date(label).toLocaleDateString('en-US', { 
-                                month: 'long', 
-                                year: 'numeric' 
+                              {new Date(label).toLocaleDateString('en-US', {
+                                month: 'long',
+                                year: 'numeric'
                               })}
                             </p>
                             <div className="space-y-1">
@@ -615,7 +615,7 @@ const AdminDashboard = () => {
                               )}
                               <div className="pt-2 border-t border-gray-100">
                                 <div className="text-xs text-gray-500">
-                                  Collection Rate: {payload[0]?.value && payload[1]?.value ? 
+                                  Collection Rate: {payload[0]?.value && payload[1]?.value ?
                                     ((payload[0].value / payload[1].value) * 100).toFixed(1) : 0}%
                                 </div>
                               </div>
@@ -626,42 +626,42 @@ const AdminDashboard = () => {
                       return null;
                     }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="collectedFines" 
-                    stroke="#10b981" 
+                  <Area
+                    type="monotone"
+                    dataKey="collectedFines"
+                    stroke="#10b981"
                     strokeWidth={3}
                     fill="url(#colorCollectedFines)"
                     fillOpacity={0.6}
-                    dot={{ 
-                      fill: '#10b981', 
-                      strokeWidth: 2, 
+                    dot={{
+                      fill: '#10b981',
+                      strokeWidth: 2,
                       stroke: '#ffffff',
                       r: 4
                     }}
-                    activeDot={{ 
-                      r: 6, 
-                      stroke: '#10b981', 
+                    activeDot={{
+                      r: 6,
+                      stroke: '#10b981',
                       strokeWidth: 2,
                       fill: '#ffffff'
                     }}
                   />
-                  <Area 
-                    type="monotone" 
-                    dataKey="totalFines" 
-                    stroke="#3b82f6" 
+                  <Area
+                    type="monotone"
+                    dataKey="totalFines"
+                    stroke="#3b82f6"
                     strokeWidth={2}
                     fill="url(#colorTotalFines)"
                     fillOpacity={0.3}
-                    dot={{ 
-                      fill: '#3b82f6', 
-                      strokeWidth: 2, 
+                    dot={{
+                      fill: '#3b82f6',
+                      strokeWidth: 2,
                       stroke: '#ffffff',
                       r: 3
                     }}
-                    activeDot={{ 
-                      r: 5, 
-                      stroke: '#3b82f6', 
+                    activeDot={{
+                      r: 5,
+                      stroke: '#3b82f6',
                       strokeWidth: 2,
                       fill: '#ffffff'
                     }}
@@ -673,8 +673,8 @@ const AdminDashboard = () => {
                 <div className="text-center text-gray-500">
                   <div className="relative">
                     <svg className="mx-auto h-16 w-16 text-gray-300 mb-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                  </svg>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-pulse"></div>
                   </div>
                   <p className="text-lg font-medium text-gray-900 mb-2">No Collection Data</p>
@@ -698,7 +698,7 @@ const AdminDashboard = () => {
         <div className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="responsive-text-xl font-bold text-gray-900">Recent Violations</h3>
-            <button 
+            <button
               onClick={() => navigate('/violations')}
               className="text-indigo-600 hover:text-indigo-700 text-sm font-medium transition-colors duration-200 hover:underline px-3 py-1 rounded-md hover:bg-indigo-50"
             >
@@ -779,10 +779,22 @@ const AdminDashboard = () => {
                     <td className="mobile-table td">
                       <div>
                         <div className="responsive-text-sm font-medium text-gray-900">
-                          {new Date(violation.created_at).toLocaleDateString()}
+                          {(() => {
+                            // Handle Firebase Timestamp
+                            const ts = violation.captured_at || violation.created_at;
+                            const sec = ts?._seconds || ts?.seconds;
+                            const date = sec ? new Date(sec * 1000) : new Date(ts);
+                            return date.toLocaleDateString();
+                          })()}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(violation.created_at).toLocaleTimeString()}
+                          {(() => {
+                            // Handle Firebase Timestamp
+                            const ts = violation.captured_at || violation.created_at;
+                            const sec = ts?._seconds || ts?.seconds;
+                            const date = sec ? new Date(sec * 1000) : new Date(ts);
+                            return date.toLocaleTimeString();
+                          })()}
                         </div>
                       </div>
                     </td>

@@ -4,6 +4,46 @@ import { adminAPI } from '../../services/api';
 import { AlertTriangle, Users, TrendingUp, DollarSign, Shield, Clock } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
+/**
+ * Parse various date formats for display, including Firebase Timestamp
+ * @param {any} dateValue - The date value from the database
+ * @returns {string} - Formatted date string or '-'
+ */
+const parseDisplayDate = (dateValue) => {
+  if (!dateValue) return '-';
+
+  try {
+    let date;
+
+    // Handle Firebase Timestamp (with or without underscore)
+    if (dateValue?.seconds || dateValue?._seconds) {
+      const seconds = dateValue.seconds || dateValue._seconds;
+      date = new Date(seconds * 1000);
+    }
+    // Handle Date object or toDate method
+    else if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
+      date = dateValue.toDate();
+    }
+    // Handle Date object
+    else if (dateValue instanceof Date) {
+      date = dateValue;
+    }
+    // Try standard Date parsing
+    else {
+      date = new Date(dateValue);
+    }
+
+    // Validate the date
+    if (date && !isNaN(date.getTime())) {
+      return date.toLocaleDateString();
+    }
+  } catch (error) {
+    console.error('Error parsing date:', error, dateValue);
+  }
+
+  return '-';
+};
+
 const RepeatOffenders = () => {
   const [filters, setFilters] = useState({
     min_violations: 2,
@@ -80,7 +120,7 @@ const RepeatOffenders = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Avg Violations per Offender</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                {statistics.avg_violations_per_offender ? 
+                {statistics.avg_violations_per_offender ?
                   parseFloat(statistics.avg_violations_per_offender).toFixed(1) : '0.0'}
               </p>
             </div>
@@ -248,13 +288,12 @@ const RepeatOffenders = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          parseFloat(offender.paid_fines || 0) === parseFloat(offender.total_fines || 0) 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {parseFloat(offender.paid_fines || 0) === parseFloat(offender.total_fines || 0) 
-                            ? 'Fully Paid' 
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${parseFloat(offender.paid_fines || 0) === parseFloat(offender.total_fines || 0)
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                          {parseFloat(offender.paid_fines || 0) === parseFloat(offender.total_fines || 0)
+                            ? 'Fully Paid'
                             : 'Outstanding Balance'}
                         </span>
                         {parseFloat(offender.pending_fines || 0) > 0 && (
@@ -267,8 +306,7 @@ const RepeatOffenders = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-1">
                         <div className="text-sm text-gray-600">
-                          {offender.first_violation_date ? 
-                            new Date(offender.first_violation_date.toDate ? offender.first_violation_date.toDate() : offender.first_violation_date).toLocaleDateString() : '-'}
+                          {parseDisplayDate(offender.first_violation_date)}
                         </div>
                         {offender.first_violation_type && (
                           <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -280,8 +318,7 @@ const RepeatOffenders = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-1">
                         <div className="text-sm text-gray-600">
-                          {offender.last_violation_date ? 
-                            new Date(offender.last_violation_date.toDate ? offender.last_violation_date.toDate() : offender.last_violation_date).toLocaleDateString() : '-'}
+                          {parseDisplayDate(offender.last_violation_date)}
                         </div>
                         {offender.last_violation_type && (
                           <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
