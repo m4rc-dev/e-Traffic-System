@@ -24,6 +24,145 @@ const repeatOffendersLimiter = rateLimit({
 // Apply admin protection to all routes
 router.use(protect, adminOnly);
 
+// @desc    Get dashboard statistics
+// @route   GET /api/admin/dashboard
+// @access  Private (Admin only)
+router.get('/dashboard', async (req, res) => {
+  try {
+    const firebaseService = getFirebaseService();
+
+    // Get all violations
+    const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
+
+    // Get all enforcers
+    const allEnforcers = await firebaseService.getUsers({ role: 'enforcer' }, { limit: 1000 });
+
+    // Calculate total violations
+    const totalViolations = allViolations.length;
+
+    // Calculate active enforcers (enforcers who are active)
+    const activeEnforcers = allEnforcers.filter(e => e.is_active).length;
+
+    // Calculate total enforcers
+    const totalEnforcers = allEnforcers.length;
+
+    // Calculate total fines (sum of all violation fines)
+    const totalFines = allViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+
+    // Calculate violations by status
+    const violationsByStatus = [
+      {
+        status: 'pending',
+        count: allViolations.filter(v => v.status === 'pending').length
+      },
+      {
+        status: 'issued',
+        count: allViolations.filter(v => v.status === 'issued').length
+      },
+      {
+        status: 'paid',
+        count: allViolations.filter(v => v.status === 'paid').length
+      },
+      {
+        status: 'disputed',
+        count: allViolations.filter(v => v.status === 'disputed').length
+      },
+      {
+        status: 'cancelled',
+        count: allViolations.filter(v => v.status === 'cancelled').length
+      }
+    ].filter(item => item.count > 0); // Only include statuses with violations
+
+    // Calculate monthly data for trends (last 6 months)
+    const monthlyData = [];
+    const now = new Date();
+
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
+
+      // Filter violations for this month
+      const monthViolations = allViolations.filter(v => {
+        const vDate = v.created_at?.toDate ? v.created_at.toDate() : new Date(v.created_at);
+        return vDate >= monthStart && vDate <= monthEnd;
+      });
+
+      const totalViolationsInMonth = monthViolations.length;
+      const totalFinesInMonth = monthViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+      const paidViolationsInMonth = monthViolations.filter(v => v.status === 'paid').length;
+      const collectedFinesInMonth = monthViolations
+        .filter(v => v.status === 'paid')
+        .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
+
+      monthlyData.push({
+        month: monthDate.toISOString(),
+        totalViolations: totalViolationsInMonth,
+        totalFines: totalFinesInMonth,
+        paidViolations: paidViolationsInMonth,
+        collectedFines: collectedFinesInMonth
+      });
+    }
+
+    // Get recent violations (last 10)
+    const recentViolations = allViolations
+      .sort((a, b) => {
+        const aDate = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0);
+        const bDate = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0);
+        return bDate - aDate;
+      })
+      .slice(0, 10);
+
+    // Get enforcer details for recent violations
+    const recentViolationsWithEnforcer = await Promise.all(
+      recentViolations.map(async (violation) => {
+        if (violation.enforcer_id) {
+          try {
+            const enforcer = await firebaseService.findById('users', violation.enforcer_id);
+            return {
+              ...violation,
+              enforcer_name: enforcer ? enforcer.full_name : 'Unknown',
+              enforcer_badge: enforcer ? enforcer.badge_number : 'Unknown'
+            };
+          } catch (error) {
+            console.error(`Error fetching enforcer for violation ${violation.id}:`, error);
+            return {
+              ...violation,
+              enforcer_name: 'Unknown',
+              enforcer_badge: 'Unknown'
+            };
+          }
+        }
+        return {
+          ...violation,
+          enforcer_name: 'Unknown',
+          enforcer_badge: 'Unknown'
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalViolations,
+        activeEnforcers,
+        totalEnforcers,
+        totalFines,
+        violationsByStatus,
+        monthlyData,
+        recentViolations: recentViolationsWithEnforcer
+      }
+    });
+
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load dashboard data'
+    });
+  }
+});
+
 // Add rate limiting middleware
 
 // Apply rate limiting to the repeat offenders endpoint
@@ -31,13 +170,13 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
   try {
     const { min_violations = 2 } = req.query;
     const firebaseService = getFirebaseService();
-    
+
     console.log('Repeat offenders request received with params:', req.query);
-    
+
     // Get all violations
     const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
     console.log(`Found ${allViolations.length} total violations`);
-    
+
     // Group by violator (using license plate as identifier)
     const violatorGroups = {};
     allViolations.forEach(violation => {
@@ -57,15 +196,15 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
         });
       }
     });
-    
+
     console.log(`Grouped into ${Object.keys(violatorGroups).length} violator groups`);
-    
+
     // Show some sample groups for debugging
     const sampleGroups = Object.entries(violatorGroups).slice(0, 5);
     sampleGroups.forEach(([key, violations]) => {
       console.log(`Group ${key}: ${violations.length} violations`);
     });
-    
+
     // Find repeat offenders (based on min_violations parameter, default 2)
     const repeatOffenders = Object.entries(violatorGroups)
       .filter(([key, violations]) => {
@@ -82,11 +221,11 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
           const bDate = new Date(b.created_at?.toDate ? b.created_at.toDate() : b.created_at);
           return bDate - aDate;
         });
-        
+
         // Get first and last violation details
         const firstViolation = violations[violations.length - 1];
         const lastViolation = violations[0];
-        
+
         // Calculate financial statistics
         const totalFines = violations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
         const paidFines = violations
@@ -95,7 +234,7 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
         const pendingFines = violations
           .filter(v => v.status === 'pending' || v.status === 'issued')
           .reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
-        
+
         return {
           identifier: key,
           violator_name: lastViolation.violator_name,
@@ -113,30 +252,30 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
         };
       })
       .sort((a, b) => b.total_violations - a.total_violations);
-    
+
     // Apply limit if specified
     const { limit } = req.query;
-    const limitedRepeatOffenders = limit 
-      ? repeatOffenders.slice(0, parseInt(limit)) 
+    const limitedRepeatOffenders = limit
+      ? repeatOffenders.slice(0, parseInt(limit))
       : repeatOffenders;
-    
+
     console.log(`Found ${repeatOffenders.length} repeat offenders, returning ${limitedRepeatOffenders.length} (limit: ${limit})`);
-    
+
     // Calculate statistics
     const totalRepeatOffenders = repeatOffenders.length;
-    const avgViolationsPerOffender = totalRepeatOffenders > 0 
+    const avgViolationsPerOffender = totalRepeatOffenders > 0
       ? repeatOffenders.reduce((sum, offender) => sum + offender.total_violations, 0) / totalRepeatOffenders
       : 0;
     const maxViolations = totalRepeatOffenders > 0
       ? Math.max(...repeatOffenders.map(offender => offender.total_violations))
       : 0;
-    
+
     const statistics = {
       total_repeat_offenders: totalRepeatOffenders,
       avg_violations_per_offender: avgViolationsPerOffender.toFixed(1),
       max_violations: maxViolations
     };
-    
+
     const response = {
       success: true,
       data: {
@@ -144,14 +283,14 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
         statistics
       }
     };
-    
+
     console.log('Sending repeat offenders response:', {
       repeatOffendersCount: limitedRepeatOffenders.length,
       statistics
     });
-    
+
     res.status(200).json(response);
-    
+
   } catch (error) {
     console.error('Repeat offenders error:', error);
     res.status(500).json({
@@ -167,10 +306,10 @@ router.get('/repeat-offenders', repeatOffendersLimiter, async (req, res) => {
 router.get('/violation-stats', async (req, res) => {
   try {
     const firebaseService = getFirebaseService();
-    
+
     // Get all violations
     const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
-    
+
     // Calculate statistics
     const stats = {
       totalViolations: allViolations.length,
@@ -186,12 +325,12 @@ router.get('/violation-stats', async (req, res) => {
       disputedViolations: allViolations.filter(v => v.status === 'disputed').length,
       cancelledViolations: allViolations.filter(v => v.status === 'cancelled').length
     };
-    
+
     res.status(200).json({
       success: true,
       data: stats
     });
-    
+
   } catch (error) {
     console.error('Violation stats error:', error);
     res.status(500).json({
@@ -207,28 +346,28 @@ router.get('/violation-stats', async (req, res) => {
 router.get('/enforcers', async (req, res) => {
   try {
     const firebaseService = getFirebaseService();
-    
+
     // Get enforcers without ordering (Firebase doesn't support orderBy on non-indexed fields easily)
     let enforcers = await firebaseService.getUsers({ role: 'enforcer' }, { limit: 1000 });
-    
+
     // Sort by created_at in memory (descending - newest first)
     enforcers.sort((a, b) => {
       const aDate = a.created_at?.toDate ? a.created_at.toDate() : new Date(a.created_at || 0);
       const bDate = b.created_at?.toDate ? b.created_at.toDate() : new Date(b.created_at || 0);
       return bDate - aDate;
     });
-    
+
     // Remove passwords from response
     const safeEnforcers = enforcers.map(enforcer => {
       const { password, ...safeEnforcer } = enforcer;
       return safeEnforcer;
     });
-    
+
     res.status(200).json({
       success: true,
       data: safeEnforcers
     });
-    
+
   } catch (error) {
     console.error('Get enforcers error:', error);
     res.status(500).json({
@@ -244,7 +383,7 @@ router.get('/enforcers', async (req, res) => {
 router.get('/next-badge-number', async (req, res) => {
   try {
     const badgeNumber = await generateNextBadgeNumber();
-    
+
     res.status(200).json({
       success: true,
       data: {
@@ -491,6 +630,123 @@ router.delete('/enforcers/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete enforcer'
+    });
+  }
+});
+
+// @desc    Get system settings
+// @route   GET /api/admin/settings
+// @access  Private (Admin only)
+router.get('/settings', async (req, res) => {
+  try {
+    const firebaseService = getFirebaseService();
+
+    // Get all settings
+    const settings = await firebaseService.getSettings();
+
+    // If no settings exist, return default settings
+    if (!settings || settings.length === 0) {
+      const defaultSettings = {
+        system_name: 'e-Traffic System',
+        system_description: 'Traffic violation management system',
+        admin_email: '',
+        timezone: 'Asia/Manila',
+        date_format: 'MM/DD/YYYY',
+        currency: 'PHP',
+        sms_api_key: '',
+        sms_api_url: '',
+        sms_sender_id: '',
+        sms_enabled: false,
+        session_timeout: 30,
+        max_login_attempts: 5,
+        password_min_length: 8,
+        require_strong_password: true,
+        email_notifications: true,
+        violation_alerts: true,
+        debug_mode: false,
+        auto_backup: true
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: defaultSettings
+      });
+    }
+
+    // Return the first (and should be only) settings document
+    res.status(200).json({
+      success: true,
+      data: settings[0]
+    });
+
+  } catch (error) {
+    console.error('Get settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load settings'
+    });
+  }
+});
+
+// @desc    Update system settings
+// @route   PUT /api/admin/settings
+// @access  Private (Admin only)
+router.put('/settings', [
+  body('system_name').optional().notEmpty().withMessage('System name cannot be empty'),
+  body('admin_email').optional().isEmail().withMessage('Please provide a valid email'),
+  body('session_timeout').optional().isInt({ min: 5, max: 480 }).withMessage('Session timeout must be between 5 and 480 minutes'),
+  body('max_login_attempts').optional().isInt({ min: 3, max: 10 }).withMessage('Max login attempts must be between 3 and 10'),
+  body('password_min_length').optional().isInt({ min: 6, max: 20 }).withMessage('Password length must be between 6 and 20'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation error',
+        details: errors.array()
+      });
+    }
+
+    const firebaseService = getFirebaseService();
+    const updateData = req.body;
+
+    // Get existing settings
+    const existingSettings = await firebaseService.getSettings();
+
+    let updatedSettings;
+
+    if (!existingSettings || existingSettings.length === 0) {
+      // Create new settings document if none exists
+      updatedSettings = await firebaseService.createSetting(updateData);
+    } else {
+      // Update existing settings document
+      const settingsId = existingSettings[0].id;
+      updatedSettings = await firebaseService.updateSetting(settingsId, updateData);
+    }
+
+    // Log audit
+    await logAudit(
+      req.user.id,
+      'UPDATE_SETTINGS',
+      'system_settings',
+      updatedSettings.id,
+      existingSettings && existingSettings.length > 0 ? existingSettings[0] : null,
+      updateData,
+      req
+    );
+
+    res.status(200).json({
+      success: true,
+      data: updatedSettings,
+      message: 'Settings updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Update settings error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update settings'
     });
   }
 });

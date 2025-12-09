@@ -6,7 +6,91 @@ const { sendSMS } = require('../services/smsService');
 const { generateViolationNumber } = require('../utils/violationNumberGenerator');
 const { logAudit } = require('../utils/auditLogger');
 
+console.log('🔥 VIOLATIONS.JS LOADED - ESP32 DateTime Parser Active');
+
 const router = express.Router();
+
+/**
+ * Parse ESP32 datetime format (handles both original and sanitized formats)
+ * Formats supported:
+ *   - Original: "12/8/2025 13:15:09" or "12/8/20255 13:15:09" (with year bug)
+ *   - Sanitized: "12-8-25 13.15.09" (SIM900-safe format)
+ * @param {string} dateTimeStr - The datetime string from ESP32
+ * @returns {Date|null} - Valid Date object or null if parsing fails
+ */
+const parseESP32DateTime = (dateTimeStr) => {
+  if (!dateTimeStr || typeof dateTimeStr !== 'string') {
+    return null;
+  }
+
+  try {
+    // Clean the string
+    const cleaned = dateTimeStr.trim();
+
+    // Pattern: "12-8-25 13.30.0" or "12/8/2025 13:15:09"
+    const parts = cleaned.split(' ');
+    if (parts.length !== 2) {
+      console.log('ESP32 DateTime parse failed: Invalid format (expected date time)', dateTimeStr);
+      return null;
+    }
+
+    const [datePart, timePart] = parts;
+
+    // Parse date - handle both / and - separators
+    const datePieces = datePart.includes('/')
+      ? datePart.split('/')
+      : datePart.split('-');
+
+    if (datePieces.length !== 3) {
+      console.log('ESP32 DateTime parse failed: Invalid date format', datePart);
+      return null;
+    }
+
+    let [month, day, year] = datePieces.map(Number);
+
+    // Fix year corruption bug (20255 -> 2025)
+    if (year > 10000) {
+      const yearStr = year.toString();
+      year = parseInt(yearStr.substring(0, 4), 10);
+      console.log(`Fixed corrupted year: ${yearStr} -> ${year}`);
+    }
+
+    // Handle 2-digit year (25 -> 2025)
+    if (year < 100) {
+      year += 2000;
+    }
+
+    // Parse time - handle both : and . separators
+    const timePieces = timePart.includes(':')
+      ? timePart.split(':')
+      : timePart.split('.');
+
+    if (timePieces.length < 2) {
+      console.log('ESP32 DateTime parse failed: Invalid time format', timePart);
+      return null;
+    }
+
+    const hours = parseInt(timePieces[0], 10);
+    const minutes = parseInt(timePieces[1], 10);
+    const seconds = timePieces.length > 2 ? parseInt(timePieces[2], 10) : 0;
+
+    // Create date in Philippines timezone (UTC+8)
+    // ESP32 sends local Philippine time, so we need to preserve it
+    const date = new Date(year, month - 1, day, hours, minutes, seconds);
+
+    // Validate the date
+    if (isNaN(date.getTime())) {
+      console.log('ESP32 DateTime parse failed: Invalid date result', dateTimeStr);
+      return null;
+    }
+
+    console.log(`✅ ESP32 DateTime parsed: "${dateTimeStr}" -> ${date.toISOString()} (Philippine Time: ${date.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })})`);
+    return date;
+  } catch (error) {
+    console.error('ESP32 DateTime parse error:', error, dateTimeStr);
+    return null;
+  }
+};
 
 // Apply authentication to all routes
 router.use(protect);
@@ -24,7 +108,9 @@ router.get('/', async (req, res) => {
       enforcer_id = '',
       violation_type = '',
       violator_name = '',
-      repeat_offender = ''
+      repeat_offender = '',
+      start_date = '',
+      end_date = ''
     } = req.query;
 
     const firebaseService = getFirebaseService();
@@ -41,13 +127,8 @@ router.get('/', async (req, res) => {
       conditions.status = status;
     }
 
-    if (enforcer_id) {
-      conditions.enforcer_id = enforcer_id;
-    }
-
-    if (violation_type) {
-      conditions.violation_type = violation_type;
-    }
+    // Note: enforcer_id is filtered in-memory for better reliability
+    // Note: violation_type is filtered in-memory for partial, case-insensitive matching
 
     if (repeat_offender !== '') {
       conditions.is_repeat_offender = repeat_offender === 'true';
@@ -73,6 +154,68 @@ router.get('/', async (req, res) => {
       filteredViolations = filteredViolations.filter(violation =>
         violation.violator_name && violation.violator_name.toLowerCase().includes(searchTerm)
       );
+    }
+
+    // Apply enforcer filter with exact ID matching
+    if (enforcer_id) {
+      filteredViolations = filteredViolations.filter(violation =>
+        violation.enforcer_id && violation.enforcer_id === enforcer_id
+      );
+    }
+
+    // Apply violation type filter with case-insensitive partial matching
+    if (violation_type) {
+      const searchTerm = violation_type.toLowerCase();
+      filteredViolations = filteredViolations.filter(violation =>
+        violation.violation_type && violation.violation_type.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Apply date range filters
+    if (start_date || end_date) {
+      filteredViolations = filteredViolations.filter(violation => {
+        // Get the violation date - check multiple possible date fields
+        let violationDate = null;
+
+        // Try different date fields in order of preference
+        if (violation.datetime) {
+          // If datetime is a Firestore Timestamp
+          violationDate = violation.datetime.toDate ? violation.datetime.toDate() : new Date(violation.datetime);
+        } else if (violation.captured_at) {
+          violationDate = violation.captured_at.toDate ? violation.captured_at.toDate() : new Date(violation.captured_at);
+        } else if (violation.created_at) {
+          violationDate = violation.created_at.toDate ? violation.created_at.toDate() : new Date(violation.created_at);
+        }
+
+        // If we couldn't get a valid date, skip this violation
+        if (!violationDate || isNaN(violationDate.getTime())) {
+          return false;
+        }
+
+        // Normalize the violation date to start of day for comparison
+        const violationDateOnly = new Date(violationDate);
+        violationDateOnly.setHours(0, 0, 0, 0);
+
+        // Check start_date filter
+        if (start_date) {
+          const startDate = new Date(start_date);
+          startDate.setHours(0, 0, 0, 0);
+          if (violationDateOnly < startDate) {
+            return false;
+          }
+        }
+
+        // Check end_date filter
+        if (end_date) {
+          const endDate = new Date(end_date);
+          endDate.setHours(23, 59, 59, 999); // Include the entire end date
+          if (violationDateOnly > endDate) {
+            return false;
+          }
+        }
+
+        return true;
+      });
     }
 
     // Sort by created_at descending (newest first)
@@ -191,6 +334,8 @@ router.post('/', [
   body('location').notEmpty().withMessage('Location is required'),
   body('fine_amount').isNumeric().withMessage('Fine amount must be a number')
 ], async (req, res) => {
+  console.log('🚨 POST /api/violations HIT - User:', req.user?.full_name, 'Body keys:', Object.keys(req.body));
+
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -246,7 +391,24 @@ router.post('/', [
       notes: req.body.notes || '',
       due_date: dueDate,
       is_repeat_offender: isRepeatOffender,
-      previous_violations_count: previousViolationsCount
+      previous_violations_count: previousViolationsCount,
+      captured_at: (() => {
+        console.log('🔍 DEBUG - captured_at:', req.body.captured_at);
+        console.log('🔍 DEBUG - datetime:', req.body.datetime);
+
+        if (req.body.captured_at) {
+          console.log('📅 Using captured_at from request');
+          return new Date(req.body.captured_at);
+        } else if (req.body.datetime) {
+          console.log('📅 Parsing ESP32 datetime:', req.body.datetime);
+          const parsed = parseESP32DateTime(req.body.datetime);
+          console.log('📅 Parse result:', parsed);
+          return parsed || new Date();
+        } else {
+          console.log('📅 No datetime provided, using server time');
+          return new Date();
+        }
+      })()
     });
 
     // Log audit
