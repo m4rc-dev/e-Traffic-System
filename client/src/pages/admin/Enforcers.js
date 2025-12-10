@@ -222,10 +222,34 @@ const Enforcers = () => {
       }
     }
 
+    // Validate email (prevent all-numeric local part)
+    const email = formData.get('email');
+    if (email) {
+      const localPart = email.split('@')[0];
+      if (/^\d+$/.test(localPart)) {
+        setFormErrors({ email: 'Email username cannot be all numbers' });
+        return;
+      }
+    }
+
+    // Validate username (alphanumeric and underscores only)
+    const username = formData.get('username');
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setFormErrors({ username: 'Username can only contain letters, numbers, and underscores' });
+      return;
+    }
+
+    // Validate full name (letters, spaces, dots, dashes only)
+    const fullName = formData.get('full_name');
+    if (!/^[a-zA-Z\s.-]+$/.test(fullName)) {
+      setFormErrors({ full_name: 'Full name can only contain letters, spaces, dots, and dashes' });
+      return;
+    }
+
     const enforcerData = {
-      username: formData.get('username'),
+      username: username,
       email: formData.get('email'),
-      full_name: formData.get('full_name'),
+      full_name: fullName,
       badge_number: formData.get('badge_number'),
       phone_number: phoneNumber,
       is_active: formData.get('is_active') === 'true'
