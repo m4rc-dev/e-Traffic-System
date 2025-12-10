@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { violationsAPI, adminAPI } from '../../services/api';
-import { Search, Filter, Download, Eye, Edit, Trash2, RefreshCw, Printer } from 'lucide-react';
+import { Search, Filter, Download, Edit, Trash2, RefreshCw, Printer } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import toast from 'react-hot-toast';
@@ -307,7 +307,7 @@ const Violations = () => {
           violation.violator_name,
           violation.vehicle_plate,
           violation.violation_type,
-          `₱${parseFloat(violation.fine_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `P${parseFloat(violation.fine_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
           violation.status,
           `${violation.enforcer_name}\n${violation.enforcer_badge}`,
           violation.location,
@@ -398,9 +398,25 @@ const Violations = () => {
     });
   };
 
-  const handlePrintReceipt = async (violation) => {
+  const handlePrintReceipt = async (violationData) => {
     // Create a new window for printing
     const printWindow = window.open('', '_blank');
+
+    // Show a loading indicator in the new window or main window
+    const toastId = toast.loading('Generating receipt...');
+
+    let violation = violationData;
+    try {
+      // Fetch fresh data to ensure status is up to date
+      const response = await violationsAPI.getViolation(violationData.id);
+      if (response.data && response.data.data) {
+        violation = response.data.data;
+      }
+    } catch (error) {
+      console.error('Failed to fetch latest violation data:', error);
+      // Fallback to existing data if fetch fails
+      toast.error('Using cached data (failed to refresh)', { id: toastId });
+    }
 
     // Parse the violation date for display
     const violationDate = parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at);
@@ -418,6 +434,8 @@ const Violations = () => {
     } catch (error) {
       console.error('Failed to load logo:', error);
     }
+
+    toast.success('Receipt generated', { id: toastId });
 
     // Generate the receipt HTML
     const receiptHTML = `
@@ -523,7 +541,7 @@ const Violations = () => {
             </div>
             <div class="info-item">
               <span class="info-label">Status:</span>
-              <span>${violation.status}</span>
+              <span style="text-transform: capitalize; font-weight: bold;">${violation.status}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Date & Time:</span>
@@ -684,18 +702,7 @@ const Violations = () => {
           </div>
           <div className="mobile-button-group">
             {/* Simplified View Pending Button */}
-            <button
-              onClick={() => handleFilterChange('status', filters.status === 'pending' ? '' : 'pending')}
-              className={`mobile-btn ${filters.status === 'pending'
-                ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md'
-                : 'bg-orange-500 text-white hover:bg-orange-600 shadow-md'
-                }`}
-              title={filters.status === 'pending' ? 'Show all violations' : 'Show only pending violations'}
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">{filters.status === 'pending' ? 'Show All' : 'View Pending'}</span>
-              <span className="sm:hidden">{filters.status === 'pending' ? 'All' : 'Pending'}</span>
-            </button>
+
 
             {/* Simplified Refresh Button */}
             <button
@@ -1147,9 +1154,7 @@ const Violations = () => {
                   </td>
                   <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
-                      <button className="text-primary-600 hover:text-primary-900 p-1 rounded-md hover:bg-primary-50 transition-colors">
-                        <Eye className="h-4 w-4" />
-                      </button>
+
                       <button
                         onClick={() => handleEdit(violation)}
                         className="text-warning-600 hover:text-warning-900 p-1 rounded-md hover:bg-warning-50 transition-colors"
