@@ -212,8 +212,8 @@ const ViolationsReport = ({ filters, setFilters }) => {
       doc.text(escapePdfText('Summary'), 14, 45);
       doc.setFontSize(12);
       doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 55);
-      doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
-      doc.text(escapePdfText(`Pending Fines: ₱${parseFloat(summary.pending_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 75);
+      doc.text(escapePdfText(`Total Fines: P${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
+      doc.text(escapePdfText(`Pending Fines: P${parseFloat(summary.pending_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 75);
       doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 14, 85);
 
       // Add violations table
@@ -223,9 +223,9 @@ const ViolationsReport = ({ filters, setFilters }) => {
         body: reportData.violations.map(violation => [
           escapePdfText(violation.violation_number),
           escapePdfText(violation.violation_type),
-          escapePdfText(`₱${parseFloat(violation.fine_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+          escapePdfText(`P${parseFloat(violation.fine_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
           escapePdfText(violation.status),
-          escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge}`),
+          escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge || ''}`),
           escapePdfText(violation.location),
           escapePdfText((() => { const ts = violation.captured_at || violation.created_at; const sec = ts?._seconds || ts?.seconds; return (sec ? new Date(sec * 1000) : new Date(ts)).toLocaleDateString(); })())
         ]),
@@ -495,7 +495,8 @@ const EnforcersReport = ({ filters, setFilters }) => {
     // Helper function to escape special characters in PDF text
     const escapePdfText = (text) => {
       if (typeof text !== 'string') return text;
-      return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+      // jsPDF with standard fonts handles basic text fine without HTML escaping
+      return text;
     };
 
     if (format === 'json') {
@@ -529,8 +530,8 @@ const EnforcersReport = ({ filters, setFilters }) => {
       doc.text(escapePdfText(`Total Enforcers: ${summary.total_enforcers}`), 14, 55);
       doc.text(escapePdfText(`Active Enforcers: ${summary.active_enforcers}`), 14, 65);
       doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 75);
-      doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 85);
-      doc.text(escapePdfText(`Collected Fines: ₱${parseFloat(summary.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 95);
+      doc.text(escapePdfText(`Total Fines: P${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 85);
+      doc.text(escapePdfText(`Collected Fines: P${parseFloat(summary.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 95);
       doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 14, 105);
 
       // Add enforcers performance table
@@ -541,8 +542,8 @@ const EnforcersReport = ({ filters, setFilters }) => {
           escapePdfText(enforcer.full_name),
           escapePdfText(enforcer.badge_number),
           escapePdfText(enforcer.total_violations),
-          escapePdfText(`₱${parseFloat(enforcer.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
-          escapePdfText(`₱${parseFloat(enforcer.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+          escapePdfText(`P${parseFloat(enforcer.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+          escapePdfText(`P${parseFloat(enforcer.collected_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
           escapePdfText(`${enforcer.collection_rate}%`)
         ]),
         styles: { fontSize: 8 },
@@ -898,7 +899,8 @@ const DailySummaryReport = ({ filters, setFilters }) => {
     // Helper function to escape special characters in PDF text
     const escapePdfText = (text) => {
       if (typeof text !== 'string') return text;
-      return text.replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+      // jsPDF with standard fonts handles basic text fine without HTML escaping
+      return text;
     };
 
     if (format === 'pdf') {
@@ -921,7 +923,7 @@ const DailySummaryReport = ({ filters, setFilters }) => {
       doc.text(escapePdfText('Summary'), 14, 45);
       doc.setFontSize(12);
       doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 55);
-      doc.text(escapePdfText(`Total Fines: ₱${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
+      doc.text(escapePdfText(`Total Fines: P${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
       doc.text(escapePdfText(`Active Enforcers: ${summary.active_enforcers}`), 14, 75);
       doc.text(escapePdfText(`Avg per Enforcer: ${summary.avg_violations_per_enforcer}`), 14, 85);
 
@@ -955,8 +957,8 @@ const DailySummaryReport = ({ filters, setFilters }) => {
             escapePdfText(violation.violator_name),
             escapePdfText(violation.violator_license || '-'),
             escapePdfText(violation.violation_type),
-            escapePdfText(`₱${parseFloat(violation.fine_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
-            escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge}`),
+            escapePdfText(`P${parseFloat(violation.fine_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`),
+            escapePdfText(`${violation.enforcer_name}\n${violation.enforcer_badge || ''}`),
             escapePdfText(violation.location)
           ]),
           styles: { fontSize: 8 },
@@ -1396,12 +1398,108 @@ const MonthlyReport = ({ filters, setFilters }) => {
     }
   };
 
+  const exportReport = (format) => {
+    if (!reportData) return;
+
+    // Helper function to escape special characters in PDF text
+    const escapePdfText = (text) => {
+      if (typeof text !== 'string') return text;
+      // jsPDF with standard fonts handles basic text fine without HTML escaping
+      // We just need to ensure it's a string.
+      return text;
+    };
+
+    if (format === 'pdf') {
+      // Generate PDF using jsPDF
+      const { jsPDF } = window.jspdf || require('jspdf');
+      window.jspdfAutoTable || require('jspdf-autotable');
+
+      const doc = new jsPDF();
+      doc.setFont('helvetica');
+
+      // Add title
+      doc.setFontSize(18);
+      doc.text(escapePdfText(`Monthly Analysis Report - ${reportData.month_name || ''} ${filters.year}`), 14, 20);
+
+      // Add summary data
+      const summary = reportData.summary;
+      doc.setFontSize(14);
+      doc.text(escapePdfText('Summary'), 14, 35);
+      doc.setFontSize(12);
+
+      // Column 1
+      // Note: Standard PDF fonts don't support the Peso symbol (₱), so we use 'P' instead
+      doc.text(escapePdfText(`Total Violations: ${summary.total_violations}`), 14, 45);
+      doc.text(escapePdfText(`Total Fines: P${parseFloat(summary.total_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 55);
+      doc.text(escapePdfText(`Paid Fines: P${parseFloat(summary.paid_fines).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`), 14, 65);
+
+      // Column 2
+      doc.text(escapePdfText(`Collection Rate: ${summary.collection_rate}%`), 110, 45);
+      doc.text(escapePdfText(`Avg Daily Violations: ${summary.avg_daily_violations}`), 110, 55);
+
+      let finalY = 75;
+
+      // Add Daily Breakdown table
+      if (reportData.daily_breakdown && reportData.daily_breakdown.length > 0) {
+        doc.text(escapePdfText('Daily Violations Trend'), 14, finalY);
+        doc.autoTable({
+          startY: finalY + 5,
+          head: [[escapePdfText('Date'), escapePdfText('Violations Count')]],
+          body: reportData.daily_breakdown.map(day => [
+            escapePdfText(day.date),
+            escapePdfText(day.violations_count)
+          ]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [22, 160, 133] },
+          margin: { top: 10 }
+        });
+        finalY = doc.lastAutoTable.finalY + 15;
+      }
+
+      // Add Violations by Status table
+      if (reportData.violations_by_status && reportData.violations_by_status.length > 0) {
+        // Check if we need a new page
+        if (finalY > 250) {
+          doc.addPage();
+          finalY = 20;
+        }
+
+        doc.text(escapePdfText('Violations by Status'), 14, finalY);
+        doc.autoTable({
+          startY: finalY + 5,
+          head: [[escapePdfText('Status'), escapePdfText('Count')]],
+          body: reportData.violations_by_status.map(status => [
+            escapePdfText(status.status),
+            escapePdfText(status.count)
+          ]),
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [22, 160, 133] },
+          margin: { top: 10 }
+        });
+      }
+
+      // Save the PDF
+      doc.save(`monthly-analysis-${filters.year}-${filters.month}.pdf`);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Monthly Analysis Report</h2>
           <p className="text-gray-600">Monthly trends and comparative analysis</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportReport('pdf')}
+            disabled={!reportData}
+            className="mobile-btn-primary flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export PDF</span>
+            <span className="sm:hidden">PDF</span>
+          </button>
         </div>
       </div>
 
