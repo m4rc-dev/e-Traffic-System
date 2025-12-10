@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminAPI } from '../../services/api';
-import { AlertTriangle, Users, TrendingUp, DollarSign, Shield, Clock } from 'lucide-react';
+import { AlertTriangle, Users, TrendingUp, DollarSign, Shield, Clock, Download } from 'lucide-react';
+import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 /**
@@ -49,6 +50,71 @@ const RepeatOffenders = () => {
     min_violations: 2,
     limit: 20
   });
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      toast.loading('Generating report...', { id: 'export-repeat' });
+
+      // Dynamic imports for PDF generation
+      const { jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+
+      // Header
+      doc.setFontSize(20);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Repeat Offenders Report', 14, 22);
+
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 30);
+      doc.text(`Criteria: ${filters.min_violations}+ Violations`, 14, 35);
+
+      // Statistics Summary
+      doc.autoTable({
+        startY: 45,
+        head: [['Total Offenders', 'Avg Violations', 'Max Violations', 'Total Fines']],
+        body: [[
+          statistics.total_repeat_offenders || 0,
+          statistics.avg_violations_per_offender ? parseFloat(statistics.avg_violations_per_offender).toFixed(1) : '0.0',
+          statistics.max_violations || 0,
+          `P${repeatOffenders.reduce((sum, off) => sum + parseFloat(off.total_fines || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        ]],
+        theme: 'plain',
+        styles: { fontSize: 10, cellPadding: 3, minCellHeight: 10 },
+        headStyles: { fontStyle: 'bold', textColor: [0, 0, 0] }
+      });
+
+      // Detailed Table
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 10,
+        head: [['Violator', 'Violations', 'Total Fines', 'Paid', 'Status', 'First Violation', 'Last Violation']],
+        body: repeatOffenders.map(offender => [
+          offender.violator_name,
+          offender.total_violations,
+          `P${parseFloat(offender.total_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          `P${parseFloat(offender.paid_fines || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+          parseFloat(offender.paid_fines || 0) === parseFloat(offender.total_fines || 0) ? 'Fully Paid' : 'Outstanding',
+          parseDisplayDate(offender.first_violation_date),
+          parseDisplayDate(offender.last_violation_date)
+        ]),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [220, 38, 38] }, // Red header to match UI theme
+        alternateRowStyles: { fillColor: [254, 242, 242] } // Light red zebra striping
+      });
+
+      doc.save(`repeat_offenders_report_${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success('Report exported successfully!', { id: 'export-repeat' });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error('Failed to export report', { id: 'export-repeat' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const { data: repeatOffendersResponse, isLoading, error } = useQuery({
     queryKey: ['repeatOffenders', filters],
@@ -90,11 +156,19 @@ const RepeatOffenders = () => {
             <p className="text-sm text-gray-600 mt-1">Monitor and track violators with multiple offenses</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Clock className="h-4 w-4" />
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
-        </div>
+        <span>Last updated: {new Date().toLocaleTimeString()}</span>
       </div>
+      <div className="mt-4 flex justify-end">
+        <button
+          onClick={handleExport}
+          disabled={isExporting || repeatOffenders.length === 0}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isExporting ? <LoadingSpinner size="sm" color="white" /> : <Download className="h-4 w-4" />}
+          <span>Export Report</span>
+        </button>
+      </div>
+
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -334,7 +408,7 @@ const RepeatOffenders = () => {
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 
