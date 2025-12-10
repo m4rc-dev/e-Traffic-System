@@ -22,15 +22,15 @@ router.get('/violations', async (req, res) => {
     const { start_date, end_date } = req.query;
     let allViolations = await firebaseService.getViolations({}, { limit: 10000 });
     console.log('Total violations fetched:', allViolations.length);
-    
+
     if (start_date && end_date) {
       const start = new Date(start_date);
       const end = new Date(end_date);
       end.setHours(23, 59, 59, 999);
-      
+
       allViolations = allViolations.filter(violation => {
         if (!violation.created_at) return false;
-        
+
         // Handle Firestore timestamp conversion
         let violationDate;
         if (violation.created_at.toDate) {
@@ -40,29 +40,34 @@ router.get('/violations', async (req, res) => {
         } else {
           violationDate = new Date(violation.created_at);
         }
-        
+
         return violationDate >= start && violationDate <= end;
       });
-      
+
       console.log('Filtered violations:', allViolations.length);
     }
-    
+
     const summary = {
       total_violations: allViolations.length,
       total_fines: allViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
       pending_fines: allViolations.filter(v => v.status === 'pending' || v.status === 'issued').reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
       collection_rate: allViolations.length > 0 ? Math.round((allViolations.filter(v => v.status === 'paid').length / allViolations.length) * 100) : 0
     };
-    
-    const violations = [];
-    for (const violation of allViolations) {
+
+    // Fetch all users once to create a lookup map
+    const users = await firebaseService.getUsers({}, { limit: 1000 });
+    const userMap = {};
+    users.forEach(user => {
+      userMap[user.id] = user.full_name || 'Unknown';
+    });
+
+    const violations = allViolations.map(violation => {
       let enforcer_name = 'Unknown';
-      if (violation.enforcer_id) {
-        const enforcer = await firebaseService.findById('users', violation.enforcer_id);
-        if (enforcer) enforcer_name = enforcer.full_name || 'Unknown';
+      if (violation.enforcer_id && userMap[violation.enforcer_id]) {
+        enforcer_name = userMap[violation.enforcer_id];
       }
-      violations.push({ ...violation, enforcer_name });
-    }
+      return { ...violation, enforcer_name };
+    });
 
     res.status(200).json({ success: true, data: { summary, violations } });
   } catch (error) {
@@ -77,15 +82,15 @@ router.get('/enforcers', async (req, res) => {
     const { start_date, end_date } = req.query;
     const enforcers = await firebaseService.getUsers({ role: 'enforcer' }, { limit: 1000 });
     let allViolations = await firebaseService.getViolations({}, { limit: 10000 });
-    
+
     if (start_date && end_date) {
       const start = new Date(start_date);
       const end = new Date(end_date);
       end.setHours(23, 59, 59, 999);
-      
+
       allViolations = allViolations.filter(violation => {
         if (!violation.created_at) return false;
-        
+
         // Handle Firestore timestamp conversion
         let violationDate;
         if (violation.created_at.toDate) {
@@ -95,28 +100,28 @@ router.get('/enforcers', async (req, res) => {
         } else {
           violationDate = new Date(violation.created_at);
         }
-        
+
         return violationDate >= start && violationDate <= end;
       });
     }
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-    
+
     const enforcersWithStats = enforcers.map(enforcer => {
       const enforcerViolations = allViolations.filter(v => v.enforcer_id === enforcer.id);
       const total_violations = enforcerViolations.length;
       const total_fines = enforcerViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
       const collected_fines = enforcerViolations.filter(v => v.status === 'paid').reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0);
       const collection_rate = total_violations > 0 ? Math.round((enforcerViolations.filter(v => v.status === 'paid').length / total_violations) * 100) : 0;
-      
+
       const todayViolations = enforcerViolations.filter(v => {
         if (!v.created_at) return false;
-        
+
         // Handle Firestore timestamp conversion
         let violationDate;
         if (v.created_at.toDate) {
@@ -126,13 +131,13 @@ router.get('/enforcers', async (req, res) => {
         } else {
           violationDate = new Date(v.created_at);
         }
-        
+
         return violationDate >= today && violationDate <= todayEnd;
       });
-      
+
       const monthViolations = enforcerViolations.filter(v => {
         if (!v.created_at) return false;
-        
+
         // Handle Firestore timestamp conversion
         let violationDate;
         if (v.created_at.toDate) {
@@ -142,10 +147,10 @@ router.get('/enforcers', async (req, res) => {
         } else {
           violationDate = new Date(v.created_at);
         }
-        
+
         return violationDate >= monthStart && violationDate <= monthEnd;
       });
-      
+
       return {
         id: String(enforcer.id || ''),
         full_name: String(enforcer.full_name || 'Unknown'),
@@ -158,12 +163,16 @@ router.get('/enforcers', async (req, res) => {
         month_violations: Number(monthViolations.length) || 0
       };
     });
-    
+
     const summary = {
       total_enforcers: Number(enforcers.length) || 0,
+      active_enforcers: enforcers.filter(e => e.is_active !== false).length,
       total_violations: Number(allViolations.length) || 0,
       total_fines: Number(allViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0)) || 0,
-      avg_collection_rate: Number(enforcersWithStats.length > 0 ? Math.round(enforcersWithStats.reduce((sum, e) => sum + e.collection_rate, 0) / enforcersWithStats.length) : 0) || 0
+      collected_fines: Number(allViolations.filter(v => v.status === 'paid').reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0)) || 0,
+      avg_collection_rate: Number(enforcersWithStats.length > 0 ? Math.round(enforcersWithStats.reduce((sum, e) => sum + e.collection_rate, 0) / enforcersWithStats.length) : 0) || 0,
+      // Alias for PDF export compatibility
+      get collection_rate() { return this.avg_collection_rate; }
     };
 
     res.status(200).json({ success: true, data: { summary, enforcers: enforcersWithStats } });
@@ -181,17 +190,17 @@ router.get('/daily-summary', async (req, res) => {
     targetDate.setHours(0, 0, 0, 0);
     const targetDateEnd = new Date(targetDate);
     targetDateEnd.setHours(23, 59, 59, 999);
-    
+
     // Get all active enforcers from the system
     const allEnforcers = await firebaseService.getUsers({ role: 'enforcer' }, { limit: 1000 });
     const activeEnforcersInSystem = allEnforcers.filter(e => e.is_active !== false).length;
-    
+
     const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
     console.log('Total violations fetched:', allViolations.length);
-    
+
     const dayViolations = allViolations.filter(violation => {
       if (!violation.created_at) return false;
-      
+
       // Handle Firestore timestamp conversion
       let violationDate;
       if (violation.created_at.toDate) {
@@ -202,15 +211,15 @@ router.get('/daily-summary', async (req, res) => {
       } else {
         violationDate = new Date(violation.created_at);
       }
-      
+
       return violationDate >= targetDate && violationDate <= targetDateEnd;
     });
-    
+
     console.log('Day violations count:', dayViolations.length);
-    
+
     const enforcersWhoWorked = new Set();
     dayViolations.forEach(v => { if (v.enforcer_id) enforcersWhoWorked.add(v.enforcer_id); });
-    
+
     const summary = {
       total_violations: dayViolations.length,
       total_fines: dayViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
@@ -218,10 +227,10 @@ router.get('/daily-summary', async (req, res) => {
       enforcers_worked_today: enforcersWhoWorked.size,
       avg_violations_per_enforcer: enforcersWhoWorked.size > 0 ? Math.round(dayViolations.length / enforcersWhoWorked.size) : 0
     };
-    
+
     const violationsByType = {};
     dayViolations.forEach(v => { const type = v.violation_type || 'Unknown'; violationsByType[type] = (violationsByType[type] || 0) + 1; });
-    
+
     const violationsByEnforcer = {};
     for (const v of dayViolations) {
       if (v.enforcer_id) {
@@ -231,7 +240,7 @@ router.get('/daily-summary', async (req, res) => {
         violationsByEnforcer[name]++;
       }
     }
-    
+
     const recentViolations = [];
     for (const violation of dayViolations.slice().reverse().slice(0, 10)) {
       let enforcer_name = 'Unknown';
@@ -265,13 +274,13 @@ router.get('/monthly', async (req, res) => {
     const targetMonth = parseInt(month) || new Date().getMonth() + 1;
     const monthStart = new Date(targetYear, targetMonth - 1, 1);
     const monthEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
-    
+
     const allViolations = await firebaseService.getViolations({}, { limit: 10000 });
     console.log('Monthly report: Total violations fetched:', allViolations.length);
-    
+
     const monthViolations = allViolations.filter(violation => {
       if (!violation.created_at) return false;
-      
+
       // Handle Firestore timestamp conversion
       let violationDate;
       if (violation.created_at.toDate) {
@@ -281,12 +290,12 @@ router.get('/monthly', async (req, res) => {
       } else {
         violationDate = new Date(violation.created_at);
       }
-      
+
       return violationDate >= monthStart && violationDate <= monthEnd;
     });
-    
+
     console.log('Monthly report: Filtered violations:', monthViolations.length);
-    
+
     const summary = {
       total_violations: monthViolations.length,
       total_fines: monthViolations.reduce((sum, v) => sum + (parseFloat(v.fine_amount) || 0), 0),
@@ -294,10 +303,10 @@ router.get('/monthly', async (req, res) => {
       collection_rate: monthViolations.length > 0 ? Math.round((monthViolations.filter(v => v.status === 'paid').length / monthViolations.length) * 100) : 0,
       avg_daily_violations: Math.round(monthViolations.length / monthEnd.getDate())
     };
-    
+
     const violationsByStatus = {};
     monthViolations.forEach(v => { const status = v.status || 'pending'; violationsByStatus[status] = (violationsByStatus[status] || 0) + 1; });
-    
+
     const dailyBreakdown = [];
     for (let day = 1; day <= monthEnd.getDate(); day++) {
       const dayStart = new Date(targetYear, targetMonth - 1, day);
@@ -312,7 +321,7 @@ router.get('/monthly', async (req, res) => {
         } else {
           violationDate = new Date(v.created_at);
         }
-        
+
         return violationDate >= dayStart && violationDate <= dayEnd;
       });
       dailyBreakdown.push({
@@ -320,7 +329,7 @@ router.get('/monthly', async (req, res) => {
         violations_count: dayViolations.length
       });
     }
-    
+
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
     res.status(200).json({
