@@ -1,297 +1,175 @@
 # E-Traffic System Database Documentation
 
 ## 🎯 Overview
-The E-Traffic System database is designed to manage traffic violations, user authentication, SMS notifications, audit logging, and system configuration. It uses MySQL as the primary database with a well-structured relational design.
+The E-Traffic System uses **Google Cloud Firestore** (NoSQL) as its primary database. It manages traffic violations, user authentication, SMS notifications, logging, and system configuration through flexible document-based collections.
 
 ## 📊 Database Schema
 
-### Visual ERD
-To view the interactive Entity Relationship Diagram:
-1. Copy the contents of `e-traffic-erd.dbml`
-2. Go to [dbdiagram.io](https://dbdiagram.io)
-3. Paste the DBML code to generate the visual ERD
+### Visual Representation
+Since Firestore is NoSQL, the schema is logical rather than enforced by the engine. The structure below represents the data model enforced by the application code.
 
-## 🗂️ Table Structure
+## 🗂️ Collection Structure
 
-### 1. **users** Table
-**Purpose**: Central user management for administrators and traffic enforcers
+### 1. **users** Collection
+**Purpose**: Central user management for administrators and traffic enforcers.
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT | N/A | No | Primary key |
-| username | VARCHAR | 50 | No | Login username |
-| email | VARCHAR | 100 | No | Email address |
-| password | VARCHAR | 255 | No | Hashed password |
-| role | ENUM | N/A | No | 'admin' or 'enforcer' |
-| full_name | VARCHAR | 100 | No | Complete name |
-| badge_number | VARCHAR | 20 | Yes | Enforcer badge ID |
-| phone_number | VARCHAR | 20 | Yes | Contact number |
-| is_active | BOOLEAN | N/A | Yes | Account status |
-| last_login | DATETIME | N/A | Yes | Last login timestamp |
-| created_at | TIMESTAMP | N/A | No | Creation time |
-| updated_at | TIMESTAMP | N/A | No | Last update time |
+| id | String | N/A | No | Auto-generated Document ID |
+| username | String | 50 | No | Login username |
+| email | String | 100 | No | Email address |
+| password | String | 255 | No | Hashed password |
+| role | String | N/A | No | 'admin' or 'enforcer' |
+| full_name | String | 100 | No | Complete name |
+| badge_number | String | 20 | Yes | Enforcer badge ID (e.g., "BADGE-1234") |
+| phone_number | String | 20 | Yes | Contact number |
+| is_active | Boolean | N/A | No | Account status |
+| last_login | Timestamp | N/A | Yes | Last login timestamp |
+| created_at | Timestamp | N/A | No | Creation time |
+| updated_at | Timestamp | N/A | No | Last update time |
 
-**Why Important:**
-• **Single Table Design**: Manages both admin and enforcer roles efficiently
-• **Authentication Hub**: Central point for all user authentication
-• **Role-Based Access**: Enables different permissions per role
-• **Audit Integration**: Links to audit logs for accountability
-• **Data Consistency**: Ensures unified user management
+**Key Features:**
+• **Role-Based Access**: Distinguishes between 'admin' and 'enforcer'.
+• **Authentication**: Used by JWT-based auth system.
 
 ---
 
-### 2. **violations** Table
-**Purpose**: Core business entity for traffic violation records
+### 2. **violations** Collection
+**Purpose**: Core business entity for traffic violation records.
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT | N/A | No | Primary key |
-| violation_number | VARCHAR | 50 | No | Unique violation ID |
-| enforcer_id | INT | N/A | No | Issuing enforcer |
-| violator_name | VARCHAR | 100 | No | Violator's name |
-| violator_license | VARCHAR | 50 | Yes | Driver's license |
-| violator_phone | VARCHAR | 20 | Yes | Contact number |
-| violator_address | TEXT | N/A | Yes | Home address |
-| vehicle_plate | VARCHAR | 20 | Yes | License plate |
-| vehicle_model | VARCHAR | 100 | Yes | Vehicle make/model |
-| vehicle_color | VARCHAR | 50 | Yes | Vehicle color |
-| violation_type | VARCHAR | 100 | No | Type of violation |
-| violation_description | TEXT | N/A | Yes | Detailed description |
-| location | VARCHAR | 255 | No | Violation location |
-| fine_amount | DECIMAL | 10,2 | No | Penalty amount |
-| status | ENUM | N/A | Yes | Violation status |
-| notes | TEXT | N/A | Yes | Additional notes |
-| issued_at | TIMESTAMP | N/A | No | Issue time |
-| due_date | DATE | N/A | Yes | Payment deadline |
-| paid_at | TIMESTAMP | N/A | Yes | Payment time |
-| created_at | TIMESTAMP | N/A | No | Creation time |
-| updated_at | TIMESTAMP | N/A | No | Last update |
+| id | String | N/A | No | Auto-generated Document ID |
+| violation_number | String | 50 | No | Unique human-readable ID |
+| enforcer_id | String | N/A | No | Reference to `users` document ID |
+| violator_name | String | 100 | No | Name of the violator |
+| violator_license | String | 50 | Yes | Driver's license number |
+| violator_phone | String | 20 | Yes | Contact number for SMS |
+| violator_address | String | 255 | Yes | Home address |
+| vehicle_plate | String | 20 | Yes | License plate number |
+| vehicle_model | String | 100 | Yes | Vehicle make/model |
+| vehicle_color | String | 50 | Yes | Vehicle color |
+| violation_type | String | 100 | No | Type/Name of violation |
+| violation_description | String | N/A | Yes | Detailed description |
+| location | String | 255 | No | Violation location |
+| fine_amount | Number | N/A | No | Penalty amount (Float) |
+| status | String | N/A | No | 'pending', 'issued', 'paid', 'disputed', 'cancelled' |
+| notes | String | N/A | Yes | Additional notes |
+| is_repeat_offender | Boolean | N/A | No | **[NEW]** Flag if license/plate has prior history |
+| previous_violations_count| Number | N/A | No | **[NEW]** Count of prior violations at creation |
+| captured_at | Timestamp | N/A | No | **[NEW]** Actual time of violation (from IoT/Camera) |
+| due_date | Timestamp | N/A | Yes | Payment deadline (usually +30 days) |
+| paid_at | Timestamp | N/A | Yes | Payment completion time |
+| created_at | Timestamp | N/A | No | Record creation time (upload time) |
+| updated_at | Timestamp | N/A | No | Last update time |
 
-**Status Values:**
-- `pending` - Newly created, not yet issued
-- `issued` - Officially issued to violator
-- `paid` - Fine has been paid
-- `disputed` - Under dispute/review
-- `cancelled` - Violation cancelled
-
-**Why Important:**
-• **Core Business Logic**: Central to traffic management system
-• **Legal Compliance**: Maintains official violation records
-• **Financial Tracking**: Manages fine collection
-• **Evidence Management**: Stores photos and documentation
-• **Geographic Data**: Enables location-based reporting
-• **Status Workflow**: Tracks violation lifecycle
+**Timefields Clarification:**
+- `captured_at`: The actual moment the violation occurred (e.g., from the ESP32 camera).
+- `created_at`: When the record was saved to the database.
 
 ---
 
-### 3. **sms_logs** Table
-**Purpose**: Tracks SMS notifications sent to violators
+### 3. **sms_logs** Collection
+**Purpose**: Tracks SMS notifications sent to violators for audit and debugging.
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT | N/A | No | Primary key |
-| violation_id | INT | N/A | No | Related violation |
-| phone_number | VARCHAR | 20 | No | Recipient number |
-| message | TEXT | N/A | No | SMS content |
-| status | ENUM | N/A | Yes | Delivery status |
-| api_response | JSON | N/A | Yes | SMS service response |
-| sent_at | TIMESTAMP | N/A | No | Send time |
-| delivered_at | TIMESTAMP | N/A | Yes | Delivery time |
-
-**Status Values:**
-- `pending` - Queued for sending
-- `sent` - Successfully sent to provider
-- `failed` - Failed to send
-- `delivered` - Confirmed delivered
-
-**Why Important:**
-• **Communication Tracking**: Monitors all SMS communications
-• **Delivery Confirmation**: Tracks message delivery status
-• **Legal Compliance**: Provides proof of notification
-• **Error Handling**: Logs failed attempts for retry
-• **Integration Monitoring**: Tracks SMS service performance
+| id | String | N/A | No | Auto-generated Document ID |
+| violation_id | String | N/A | No | Reference to `violations` document ID |
+| phone_number | String | 20 | No | Recipient number |
+| message | String | N/A | No | SMS content body |
+| status | String | N/A | No | 'sent', 'failed' |
+| api_response | String/JSON| N/A | Yes | Raw response from SMS provider API |
+| created_at | Timestamp | N/A | No | Send time |
 
 ---
 
-### 4. **audit_logs** Table
-**Purpose**: Comprehensive audit trail for security and compliance
+### 4. **audit_logs** Collection
+**Purpose**: Comprehensive audit trail for security and compliance.
 
 | Field Name | Data Type | Length | Null | Description |
 |------------|-----------|--------|------|-------------|
-| id | INT | N/A | No | Primary key |
-| user_id | INT | N/A | Yes | User who performed action |
-| action | VARCHAR | 100 | No | Action type |
-| table_name | VARCHAR | 50 | Yes | Affected table |
-| record_id | INT | N/A | Yes | Affected record ID |
-| old_values | JSON | N/A | Yes | Values before change |
-| new_values | JSON | N/A | Yes | Values after change |
-| ip_address | VARCHAR | 45 | Yes | User's IP address |
-| user_agent | TEXT | N/A | Yes | Browser/client info |
-| created_at | TIMESTAMP | N/A | No | Action time |
-
-**Common Actions:**
-- `LOGIN_SUCCESS` - Successful login
-- `LOGIN_FAILED` - Failed login attempt
-- `LOGOUT` - User logout
-- `CREATE_ENFORCER` - New enforcer created
-- `UPDATE_ENFORCER` - Enforcer updated
-- `DELETE_ENFORCER` - Enforcer deleted
-- `CREATE_VIOLATION` - New violation created
-- `UPDATE_VIOLATION` - Violation updated
-- `DELETE_VIOLATION` - Violation deleted
-
-**Why Important:**
-• **Security Compliance**: Meets regulatory audit requirements
-• **Forensic Analysis**: Enables investigation of activities
-• **Change Tracking**: Records all data modifications
-• **User Accountability**: Links actions to specific users
-• **System Monitoring**: Identifies usage patterns
-• **Legal Protection**: Provides evidence for proceedings
+| id | String | N/A | No | Auto-generated Document ID |
+| user_id | String | N/A | Yes | Reference to `users` document ID |
+| action | String | 100 | No | Action type (e.g., 'LOGIN_SUCCESS') |
+| table_name | String | 50 | Yes | Affected collection name |
+| record_id | String | N/A | Yes | Affected document ID |
+| old_values | Object | N/A | Yes | Snapshot of data before change |
+| new_values | Object | N/A | Yes | Snapshot of data after change |
+| ip_address | String | 45 | Yes | User's IP address |
+| user_agent | String | N/A | Yes | Browser/client info |
+| created_at | Timestamp | N/A | No | Action time |
 
 ---
 
-### 5. **system_settings** Table
-**Purpose**: Configuration management for system parameters
+### 5. **system_settings** Collection
+**Purpose**: Configuration management.
+**Structure**: A **single document** contains all system-wide settings as fields.
 
-| Field Name | Data Type | Length | Null | Description |
-|------------|-----------|--------|------|-------------|
-| id | INT | N/A | No | Primary key |
-| setting_key | VARCHAR | 100 | No | Setting identifier |
-| setting_value | TEXT | N/A | Yes | Configuration value |
-| description | TEXT | N/A | Yes | Human-readable description |
-| updated_at | TIMESTAMP | N/A | No | Last update |
+| Field Name (Key) | Data Type | Length | Null | Description |
+|------------------|-----------|--------|------|-------------|
+| system_name | String | 100 | No | Name of the application |
+| system_description | String | 255 | Yes | Description text |
+| session_timeout | Number | N/A | No | User session timeout (minutes) |
+| sms_enabled | Boolean | N/A | No | Master switch for SMS sending |
+| admin_email | String | 100 | Yes | Contact email for system admin |
+| date_format | String | 20 | No | Preferred date display format |
+| currency | String | 10 | No | Currency symbol (e.g., "PHP") |
+| ... | ... | ... | ... | Other configuration fields |
 
-**Example Settings:**
-- `sms_enabled` - Enable/disable SMS notifications
-- `default_fine_amount` - Default fine for violations
-- `violation_due_days` - Days until payment due
-- `system_maintenance_mode` - Maintenance mode flag
-
-**Why Important:**
-• **Configuration Management**: Centralizes system settings
-• **Runtime Configuration**: Changes without code deployment
-• **Environment Flexibility**: Different settings per environment
-• **Feature Toggles**: Dynamic feature enable/disable
-• **Business Rules**: Configurable business parameters
+*Note: Unlike a Key-Value table, this is implemented as a single JSON-like document for efficient loading.*
 
 ---
 
-## 🔗 Relationships
+## 🔗 Logical Relationships (NoSQL)
 
-### Primary Relationships:
-1. **users → violations** (1:Many)
-   - One enforcer can issue many violations
-   - CASCADE DELETE: Violations deleted when enforcer deleted
+Since Firestore is non-relational, "relationships" are logical references. We use specific notations to represent these in the ERD:
 
-2. **violations → sms_logs** (1:Many)
-   - One violation can have multiple SMS notifications
-   - CASCADE DELETE: SMS logs deleted when violation deleted
+### 📐 ERD Notation Guide
 
-3. **users → audit_logs** (1:Many)
-   - One user can have many audit entries
-   - SET NULL: Audit logs preserved when user deleted
+**1. Line Types (Why Solid or Dashed?)**
+*   **Solid Line (Physical Link)**: Represents a strong, database-enforced reference.
+    *   *Usage*: When Table A has an actual column (ID) pointing to Table B.
+    *   *Example*: `violations` has `enforcer_id`, so the line to `users` is **Solid**.
+*   **Dashed Line (Logical Dependency)**: Represents a software-level dependency without a direct database link.
+    *   *Usage*: When a User manages a dataset but has no foreign key connecting them.
+    *   *Example*: `users` (Admin) manages `system_settings`, but they don't share IDs. The connection exists in the **Application Logic**, so the line is **Dashed**.
 
-### Relationship Benefits:
-• **Data Integrity**: Foreign key constraints ensure consistency
-• **Automatic Cleanup**: Cascade operations maintain data hygiene
-• **Query Efficiency**: Proper indexing for fast joins
-• **Scalability**: Structure supports high-volume growth
+**2. Cardinality (Why One-to-Many vs One-to-One?)**
+*   **One-to-Many (1:N)**: Used when a single record in Parent Table owns multiple records in Child Table.
+    *   *Users → Violations*: One Enforcer issues **Many** violations.
+    *   *Violations → SMS Logs*: One Violation can have **Many** SMS updates (Created, Reminder 1, Reminder 2).
+*   **One-to-One (1:1)**: Used when a single record connects to exactly one other record or singleton.
+    *   *Users → System Settings*: Only **One** Admin role manages the **One** global settings document.
 
----
+### Relationship Specifics
 
-## 📈 Performance & Security
+1.  **users → violations (Solid, 1:N)**
+    *   **Reason**: Physical `enforcer_id` exists in violations.
+    *   **Logic**: An enforcer's daily duty involves issuing multiple tickets, hence "Many".
 
-### Indexing Strategy:
-- Primary keys (auto-indexed)
-- Unique indexes on email, username, violation_number, badge_number
-- Foreign key indexes for join performance
-- Composite indexes on frequently queried fields
+2.  **violations → sms_logs (Solid, 1:N)**
+    *   **Reason**: Physical `violation_id` exists in sms_logs.
+    *   **Logic**: A single violation lifecycle (Issued -> Reminder -> Paid) triggers multiple SMS notifications over time.
 
-### Security Features:
-- **Password Hashing**: bcrypt with salt rounds
-- **SQL Injection Prevention**: Parameterized queries
-- **Input Validation**: Server-side validation
-- **Role-Based Access**: Different permissions per role
-- **Audit Logging**: Complete action tracking
+3.  **users → audit_logs (Solid, 1:N)**
+    *   **Reason**: Physical `user_id` exists in audit_logs.
+    *   **Logic**: A single user performs thousands of actions (Login, Update, Delete) over their lifetime.
 
-### Data Types:
-- **DECIMAL**: Monetary values (precision maintained)
-- **JSON**: Flexible data storage (photos, responses)
-- **ENUM**: Controlled value sets (status fields)
-- **TIMESTAMP**: Automatic date/time management
+4.  **users → system_settings (Dashed, 1:1)**
+    *   **Reason**: No foreign key (ID) connects them.
+    *   **Logic**: The Admin user has permission to edit the Global Settings. This is a dependency, not a parent-child relationship.
 
----
-
-## 🚀 Usage Examples
-
-### Common Queries:
-
-```sql
--- Get violations by enforcer
-SELECT v.*, u.full_name as enforcer_name 
-FROM violations v 
-JOIN users u ON v.enforcer_id = u.id 
-WHERE u.id = ?;
-
--- Violation statistics
-SELECT 
-  COUNT(*) as total_violations,
-  SUM(fine_amount) as total_fines,
-  COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count
-FROM violations;
-
--- Recent audit activity
-SELECT al.*, u.full_name as user_name
-FROM audit_logs al
-LEFT JOIN users u ON al.user_id = u.id
-ORDER BY al.created_at DESC
-LIMIT 10;
-
--- SMS delivery status
-SELECT 
-  COUNT(*) as total_sms,
-  COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered_count,
-  COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count
-FROM sms_logs;
-```
-
----
 
 ## 🔧 Database Setup
 
-### Initial Setup:
-```bash
-# Run the database setup script
-cd server
-node scripts/setupDatabase.js
-```
+The database is initialized automatically via the Firebase Admin SDK.
+- **Connection**: `server/config/database.js` and `firebase.js`.
+- **Credentials**: Uses Service Account or Google Application Default Credentials.
 
-### Environment Variables:
+### Environment Variables
 ```env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=e_traffic_db
-DB_PORT=3306
-ADMIN_EMAIL=admin@etraffic.com
-ADMIN_PASSWORD=admin123
+FIREBASE_PROJECT_ID=your-project-id
+# For local dev with service account:
+FIREBASE_SERVICE_ACCOUNT_KEY={"type": "service_account", ...}
 ```
-
----
-
-## 📋 Maintenance
-
-### Regular Tasks:
-- Monitor audit log growth
-- Archive old violation records
-- Update system settings as needed
-- Review failed SMS logs
-- Backup database regularly
-
-### Performance Monitoring:
-- Query execution times
-- Index usage statistics
-- Connection pool status
-- Disk space usage
-
-This database design provides a robust foundation for the E-Traffic System, ensuring data integrity, security, and scalability while meeting all business requirements.
