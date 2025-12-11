@@ -11,7 +11,7 @@ class FirebaseService {
       const docRef = this.db.collection(collection).doc();
       const dataWithTimestamps = addTimestamps(data);
       await docRef.set(dataWithTimestamps);
-      
+
       const doc = await docRef.get();
       return docToObject(doc);
     } catch (error) {
@@ -36,11 +36,11 @@ class FirebaseService {
         .where(field, '==', value)
         .limit(1)
         .get();
-      
+
       if (snapshot.empty) {
         return null;
       }
-      
+
       return docToObject(snapshot.docs[0]);
     } catch (error) {
       console.error(`Error finding document in ${collection}:`, error);
@@ -51,14 +51,14 @@ class FirebaseService {
   async findMany(collection, conditions = {}, options = {}) {
     try {
       let query = this.db.collection(collection);
-      
+
       // Apply where conditions
       Object.entries(conditions).forEach(([field, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           query = query.where(field, '==', value);
         }
       });
-      
+
       // Apply ordering - MUST be done before limit/offset in Firestore
       // Only apply ordering if explicitly requested to avoid composite index requirements
       if (options.orderBy) {
@@ -68,12 +68,12 @@ class FirebaseService {
       else if (Object.keys(conditions).length === 0) {
         query = query.orderBy('created_at', 'desc');
       }
-      
+
       // Firestore doesn't support offset efficiently, so we'll get all and paginate in memory
       // Note: This is not ideal for large datasets, but works for the current use case
       const snapshot = await query.get();
       let results = snapshotToArray(snapshot);
-      
+
       // If no orderBy was used but we want sorting, do it in memory
       if (!options.orderBy && Object.keys(conditions).length > 0 && options.sortInMemory !== false) {
         results.sort((a, b) => {
@@ -82,16 +82,16 @@ class FirebaseService {
           return bDate - aDate;
         });
       }
-      
+
       // Apply offset and limit in memory
       if (options.offset) {
         results = results.slice(options.offset);
       }
-      
+
       if (options.limit) {
         results = results.slice(0, options.limit);
       }
-      
+
       return results;
     } catch (error) {
       console.error(`Error finding documents in ${collection}:`, error);
@@ -106,7 +106,7 @@ class FirebaseService {
       const docRef = this.db.collection(collection).doc(id);
       const dataWithTimestamp = updateTimestamp(data);
       await docRef.update(dataWithTimestamp);
-      
+
       const doc = await docRef.get();
       return docToObject(doc);
     } catch (error) {
@@ -128,14 +128,14 @@ class FirebaseService {
   async count(collection, conditions = {}) {
     try {
       let query = this.db.collection(collection);
-      
+
       // Apply where conditions
       Object.entries(conditions).forEach(([field, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           query = query.where(field, '==', value);
         }
       });
-      
+
       const snapshot = await query.get();
       return snapshot.size;
     } catch (error) {
@@ -237,7 +237,7 @@ class FirebaseService {
   async getViolationsWithEnforcer(filters = {}, options = {}) {
     try {
       const violations = await this.getViolations(filters, options);
-      
+
       // Get enforcer details for each violation
       const violationsWithEnforcer = await Promise.all(
         violations.map(async (violation) => {
@@ -265,7 +265,7 @@ class FirebaseService {
           };
         })
       );
-      
+
       return violationsWithEnforcer;
     } catch (error) {
       console.error('Error getting violations with enforcer:', error);
@@ -276,7 +276,7 @@ class FirebaseService {
   async getAuditLogsWithUser(filters = {}, options = {}) {
     try {
       const auditLogs = await this.getAuditLogs(filters, options);
-      
+
       // Get user details for each audit log
       const auditLogsWithUser = await Promise.all(
         auditLogs.map(async (log) => {
@@ -290,7 +290,7 @@ class FirebaseService {
           return log;
         })
       );
-      
+
       return auditLogsWithUser;
     } catch (error) {
       console.error('Error getting audit logs with user:', error);
