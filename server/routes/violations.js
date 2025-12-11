@@ -75,8 +75,12 @@ const parseESP32DateTime = (dateTimeStr) => {
     const seconds = timePieces.length > 2 ? parseInt(timePieces[2], 10) : 0;
 
     // Create date in Philippines timezone (UTC+8)
-    // ESP32 sends local Philippine time, so we need to preserve it
-    const date = new Date(year, month - 1, day, hours, minutes, seconds);
+    // We construct an ISO string with offset to force specific timezone interpretation
+    // Format: YYYY-MM-DDTHH:mm:ss+08:00
+    const pad = (num) => num.toString().padStart(2, '0');
+    const isoString = `${year}-${pad(month)}-${pad(day)}T${pad(hours)}:${pad(minutes)}:${pad(seconds)}+08:00`;
+
+    const date = new Date(isoString);
 
     // Validate the date
     if (isNaN(date.getTime())) {
@@ -84,7 +88,7 @@ const parseESP32DateTime = (dateTimeStr) => {
       return null;
     }
 
-    console.log(`✅ ESP32 DateTime parsed: "${dateTimeStr}" -> ${date.toISOString()} (Philippine Time: ${date.toLocaleString('en-PH', { timeZone: 'Asia/Manila' })})`);
+    console.log(`✅ ESP32 DateTime parsed: "${dateTimeStr}" -> ${date.toISOString()} (Philippine Time: ${date.toLocaleString('en-US', { timeZone: 'Asia/Manila' })})`);
     return date;
   } catch (error) {
     console.error('ESP32 DateTime parse error:', error, dateTimeStr);
@@ -398,6 +402,12 @@ router.post('/', [
 
         if (req.body.captured_at) {
           console.log('📅 Using captured_at from request');
+          // Try to parse using our specialized parser first to handle timezone correctly
+          const parsed = parseESP32DateTime(req.body.captured_at);
+          if (parsed) {
+            return parsed;
+          }
+          // Fallback if parser returns null (standard ISO string perhaps?)
           return new Date(req.body.captured_at);
         } else if (req.body.datetime) {
           console.log('📅 Parsing ESP32 datetime:', req.body.datetime);
