@@ -18,10 +18,18 @@ async function sendPenaltyReminders() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get all violations that are not paid and have a due date before today
-    const allViolations = await firebaseService.getViolations({}, { limit: 1000 });
-    const overdueViolations = allViolations.filter(violation => {
-      // Skip if already paid
+    // Get violations with 'issued' or 'pending' status
+    // We fetch these specifically to avoid fetching thousands of 'paid' or 'cancelled' violations
+    // This allows the limit: 1000 to apply only to active violations, significantly checking more relevant records
+    const issuedViolations = await firebaseService.getViolations({ status: 'issued' }, { limit: 1000 });
+    const pendingViolations = await firebaseService.getViolations({ status: 'pending' }, { limit: 1000 });
+
+    // Combine and deduplicate (though IDs should be unique per query)
+    const activeViolations = [...issuedViolations, ...pendingViolations];
+
+    // Filter for overdue violations
+    const overdueViolations = activeViolations.filter(violation => {
+      // Safety check: Skip if already paid (though our query filtered this, double check)
       if (violation.status === 'paid') return false;
 
       // Skip if no due date
@@ -40,10 +48,14 @@ async function sendPenaltyReminders() {
       // Reset time portion for comparison
       dueDate.setHours(0, 0, 0, 0);
 
-      // Calculate days overdue (due date should be 7 days before today)
+      // Calculate days overdue
+      // Example: Due Dec 1. Today Dec 9. Diff = 8 days.
       const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
 
-      // Only send reminders for violations that are more than 7 days overdue
+      // LOGIC VERIFICATION:
+      // "After 7 days" means the 8th day overdue or later.
+      // Day 1-7: Grace period / Early overdue
+      // Day 8+: Penalty Reminder Sent
       return daysOverdue > 7;
     });
 
