@@ -6,14 +6,6 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import toast from 'react-hot-toast';
 
-const VIOLATION_TYPES = [
-  'Speeding',
-  'Red Light',
-  'Parking',
-  'Reckless Driving',
-  'DUI'
-];
-
 /**
  * Parse various date formats for display, including ESP32 format
  * Handles: Firebase Timestamp, ISO strings, ESP32 format (e.g., "12-4-25 14.30.0")
@@ -82,6 +74,37 @@ const parseDisplayDate = (dateValue) => {
 
   // Fallback to current date
   return new Date();
+};
+
+/**
+ * Format date for Philippine timezone (UTC+8 / Asia/Manila)
+ * @param {Date} date - The date to format
+ * @returns {string} - Formatted date string in Philippine timezone
+ */
+const formatPhilippineDate = (date) => {
+  if (!date || isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+};
+
+/**
+ * Format time for Philippine timezone (UTC+8 / Asia/Manila)
+ * @param {Date} date - The date to format
+ * @returns {string} - Formatted time string in Philippine timezone
+ */
+const formatPhilippineTime = (date) => {
+  if (!date || isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('en-US', {
+    timeZone: 'Asia/Manila',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
 };
 
 const Violations = () => {
@@ -291,7 +314,7 @@ const Violations = () => {
       doc.setFontSize(12);
 
       // Add filter information
-      let filterText = `Generated on: ${new Date().toLocaleDateString()}`;
+      let filterText = `Generated on: ${new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}`;
       if (filters.status) filterText += ` | Status: ${filters.status}`;
       if (filters.start_date && filters.end_date) {
         filterText += ` | Period: ${filters.start_date} to ${filters.end_date}`;
@@ -311,7 +334,7 @@ const Violations = () => {
           violation.status,
           `${violation.enforcer_name}\n${violation.enforcer_badge}`,
           violation.location,
-          parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at).toLocaleDateString()
+          formatPhilippineDate(parseDisplayDate(violation.created_at))
         ]),
         styles: { fontSize: 8 },
         headStyles: { fillColor: [22, 160, 133] },
@@ -419,7 +442,7 @@ const Violations = () => {
     }
 
     // Parse the violation date for display
-    const violationDate = parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at);
+    const violationDate = parseDisplayDate(violation.created_at);
 
     // Get logo as base64
     let logoDataUrl = '';
@@ -529,7 +552,7 @@ const Violations = () => {
           ${logoDataUrl ? `<img src="${logoDataUrl}" alt="Logo" class="logo" />` : ''}
           <h1>e-Traffic Violation System</h1>
           <p>Official Violation Receipt</p>
-          <p>Generated: ${new Date().toLocaleDateString()}</p>
+          <p>Generated: ${new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</p>
         </div>
         
         <div class="section">
@@ -545,7 +568,7 @@ const Violations = () => {
             </div>
             <div class="info-item">
               <span class="info-label">Date & Time:</span>
-              <span>${violationDate.toLocaleString()}</span>
+              <span>${violationDate.toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Enforcer:</span>
@@ -638,7 +661,7 @@ const Violations = () => {
         
         <div class="footer">
           <p>This is an official receipt for traffic violation. Please keep this document for your records.</p>
-          <p>System Generated Receipt - ${new Date().toLocaleString()}</p>
+          <p>System Generated Receipt - ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</p>
         </div>
         
         <div class="no-print" style="text-align: center; margin-top: 20px;">
@@ -1145,10 +1168,10 @@ const Violations = () => {
                   <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div>
                       <div className="font-medium text-gray-900">
-                        {parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at).toLocaleDateString()}
+                        {formatPhilippineDate(parseDisplayDate(violation.created_at))}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {parseDisplayDate(violation.datetime || violation.captured_at || violation.created_at).toLocaleTimeString()}
+                        {formatPhilippineTime(parseDisplayDate(violation.created_at))}
                       </div>
                     </div>
                   </td>
