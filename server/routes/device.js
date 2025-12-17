@@ -169,9 +169,9 @@ router.post(
       // Generate violation number
       const violationNumber = await generateViolationNumber();
 
-      // Calculate due date (30 days from now)
+      // Calculate due date (3 days from now - Cebu City compliance period)
       const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
+      dueDate.setDate(dueDate.getDate() + 3);
 
       // Check if violator is a repeat offender by looking for existing violations
       // with the same license number
@@ -199,7 +199,9 @@ router.post(
         violator_phone: req.body.violator_phone || '',
         violator_address: req.body.violator_address || '',
         vehicle_plate: req.body.vehicle_plate || '',
+        vehicle_brand: req.body.vehicle_brand || '',
         vehicle_model: req.body.vehicle_model || '',
+        vehicle_variant: req.body.vehicle_variant || '',
         vehicle_color: req.body.vehicle_color || '',
         violation_type: req.body.violation_type,
         violation_description: req.body.violation_description || '',

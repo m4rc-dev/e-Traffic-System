@@ -29,6 +29,11 @@ async function sendPenaltyReminders() {
 
     // Filter for overdue violations
     const overdueViolations = activeViolations.filter(violation => {
+      // Skip test violations (violation_number starting with 'TEST-')
+      if (violation.violation_number && violation.violation_number.startsWith('TEST-')) {
+        return false;
+      }
+
       // Safety check: Skip if already paid (though our query filtered this, double check)
       if (violation.status === 'paid') return false;
 
@@ -49,14 +54,14 @@ async function sendPenaltyReminders() {
       dueDate.setHours(0, 0, 0, 0);
 
       // Calculate days overdue
-      // Example: Due Dec 1. Today Dec 9. Diff = 8 days.
+      // Example: Due Dec 1. Today Dec 2. Diff = 1 day (overdue).
       const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
 
       // LOGIC VERIFICATION:
-      // "After 7 days" means the 8th day overdue or later.
-      // Day 1-7: Grace period / Early overdue
-      // Day 8+: Penalty Reminder Sent
-      return daysOverdue > 7;
+      // Compliance period is 3 days. After 3 days, violation becomes overdue.
+      // Day 1-3: Compliance period (within due date)
+      // Day 4+: Overdue - Penalty Reminder Sent
+      return daysOverdue > 0;
     });
 
     console.log(`📬 Found ${overdueViolations.length} overdue violations`);
@@ -65,6 +70,12 @@ async function sendPenaltyReminders() {
     let remindersSent = 0;
     for (const violation of overdueViolations) {
       try {
+        // Skip test violations (safety check)
+        if (violation.violation_number && violation.violation_number.startsWith('TEST-')) {
+          console.log(`⏭️  Skipping test violation ${violation.violation_number}`);
+          continue;
+        }
+
         // Skip if no phone number
         if (!violation.violator_phone) continue;
 
@@ -79,7 +90,7 @@ async function sendPenaltyReminders() {
         }
 
         // Create short penalty reminder message for better delivery
-        const message = `e-Traffic Reminder: Violation ${violation.violation_type}, Plate: ${violation.vehicle_plate}, Fine: PHP${violation.fine_amount}, Due: ${dueDate.toLocaleDateString()}. Please settle. Ref: ${violation.violation_number}`;
+        const message = `e-Traffic Reminder: Violation ${violation.violation_type}, Plate: ${violation.vehicle_plate}, Fine: PHP${violation.fine_amount}, Due: ${dueDate.toLocaleDateString()} (Compliance Period: 3 days). Please settle. Ref: ${violation.violation_number}`;
 
         // Send SMS
         console.log(`📱 Sending penalty reminder for violation ${violation.violation_number} to ${violation.violator_phone}`);

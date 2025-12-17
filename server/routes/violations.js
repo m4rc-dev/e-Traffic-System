@@ -355,9 +355,9 @@ router.post('/', [
     // Generate violation number
     const violationNumber = await generateViolationNumber();
 
-    // Calculate due date (30 days from now)
+    // Calculate due date (3 days from now - Cebu City compliance period)
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    dueDate.setDate(dueDate.getDate() + 3);
 
     // Check if violator is a repeat offender by looking for existing violations
     // with the same license number
@@ -385,7 +385,9 @@ router.post('/', [
       violator_phone: req.body.violator_phone || '',
       violator_address: req.body.violator_address || '',
       vehicle_plate: req.body.vehicle_plate || '',
+      vehicle_brand: req.body.vehicle_brand || '',
       vehicle_model: req.body.vehicle_model || '',
+      vehicle_variant: req.body.vehicle_variant || '',
       vehicle_color: req.body.vehicle_color || '',
       violation_type: req.body.violation_type,
       violation_description: req.body.violation_description || '',
@@ -488,74 +490,78 @@ router.put('/:id', [
       });
     }
 
+    // Prevent status updates for paid violations
+    if (currentViolation.status === 'paid' && req.body.status && req.body.status !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot update status: This violation has already been paid and its status cannot be changed'
+      });
+    }
+
     // Update violation
     const updatedViolation = await firebaseService.updateViolation(id, req.body);
 
-    // Check if status was updated to 'issued' and send penalty reminder if overdue
-    if (req.body.status === 'issued' && currentViolation.status !== 'issued') {
-      // Check if violation is overdue (more than 7 days past due date)
-      if (currentViolation.due_date && currentViolation.violator_phone) {
-        const dueDate = currentViolation.due_date.toDate ?
-          currentViolation.due_date.toDate() :
-          new Date(currentViolation.due_date);
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        dueDate.setHours(0, 0, 0, 0);
-
-        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-
-        // If overdue by more than 7 days, send penalty reminder
-        if (daysOverdue > 7) {
-          const { sendSMS } = require('../services/smsService');
-
-          // Create short penalty reminder message for better delivery
-          const message = `e-Traffic Reminder: Violation ${currentViolation.violation_type}, Plate: ${currentViolation.vehicle_plate}, Fine: PHP${currentViolation.fine_amount}, Due: ${dueDate.toLocaleDateString()}. Please settle. Ref: ${currentViolation.violation_number}`;
-
-          // Send SMS in the background (don't wait for result)
-          sendSMS(currentViolation.violator_phone, message, id)
-            .then(result => {
-              if (result.success) {
-                console.log(`✅ Penalty reminder sent for violation ${currentViolation.violation_number}`);
-              } else {
-                console.log(`❌ Failed to send penalty reminder for violation ${currentViolation.violation_number}: ${result.message}`);
-              }
-            })
-            .catch(error => {
-              console.error(`❌ Error sending penalty reminder for violation ${currentViolation.violation_number}:`, error.message);
-            });
-        }
-      }
-    }
-
-    // Check if client requested to send penalty reminder
-    if (req.body.sendPenaltyReminder) {
-      // Check if violation has necessary data
-      if (currentViolation.violator_phone && currentViolation.due_date) {
+    // Check if status was updated to 'paid' and automatically send payment confirmation SMS
+    if (req.body.status === 'paid' && currentViolation.status !== 'paid') {
+      // Automatically send payment confirmation SMS if violator has phone number
+      if (currentViolation.violator_phone) {
         const { sendSMS } = require('../services/smsService');
 
-        // Get due date
-        const dueDate = currentViolation.due_date.toDate ?
-          currentViolation.due_date.toDate() :
-          new Date(currentViolation.due_date);
-
-        // Create short penalty reminder message for better delivery
-        const message = `e-Traffic Reminder: Violation ${currentViolation.violation_type}, Plate: ${currentViolation.vehicle_plate}, Fine: PHP${currentViolation.fine_amount}, Due: ${dueDate.toLocaleDateString()}. Please settle. Ref: ${currentViolation.violation_number}`;
+        // Create payment confirmation message
+        const message = `e-Traffic: Payment Confirmed. Violation: ${currentViolation.violation_type}, Plate: ${currentViolation.vehicle_plate}, Paid: PHP${currentViolation.fine_amount}. Ref: ${currentViolation.violation_number}`;
 
         // Send SMS in the background (don't wait for result)
         sendSMS(currentViolation.violator_phone, message, id)
           .then(result => {
             if (result.success) {
-              console.log(`✅ Penalty reminder sent for violation ${currentViolation.violation_number}`);
+              console.log(`✅ Payment confirmation SMS sent for violation ${currentViolation.violation_number}`);
             } else {
-              console.log(`❌ Failed to send penalty reminder for violation ${currentViolation.violation_number}: ${result.message}`);
+              console.log(`❌ Failed to send payment confirmation SMS for violation ${currentViolation.violation_number}: ${result.message}`);
             }
           })
           .catch(error => {
-            console.error(`❌ Error sending penalty reminder for violation ${currentViolation.violation_number}:`, error.message);
+            console.error(`❌ Error sending payment confirmation SMS for violation ${currentViolation.violation_number}:`, error.message);
           });
       }
     }
+
+    // Check if status was updated to 'issued' and automatically send violation notice SMS
+    if (req.body.status === 'issued' && currentViolation.status !== 'issued') {
+      // Automatically send violation notice SMS if violator has phone number
+      if (currentViolation.violator_phone) {
+        const { sendSMS } = require('../services/smsService');
+
+        // Get due date for the message
+        let dueDateStr = '';
+        if (currentViolation.due_date) {
+          const dueDate = currentViolation.due_date.toDate ?
+            currentViolation.due_date.toDate() :
+            new Date(currentViolation.due_date);
+          dueDateStr = dueDate.toLocaleDateString();
+        }
+
+        // Create violation notice message
+        const message = `e-Traffic Notice: Violation ${currentViolation.violation_type}, Plate: ${currentViolation.vehicle_plate}, Fine: PHP${currentViolation.fine_amount}${dueDateStr ? `, Due: ${dueDateStr} (Compliance Period: 3 days)` : ' (Compliance Period: 3 days)'}. Please settle. Ref: ${currentViolation.violation_number}`;
+
+        // Send SMS in the background (don't wait for result)
+        sendSMS(currentViolation.violator_phone, message, id)
+          .then(result => {
+            if (result.success) {
+              console.log(`✅ Violation notice SMS sent for violation ${currentViolation.violation_number}`);
+            } else {
+              console.log(`❌ Failed to send violation notice SMS for violation ${currentViolation.violation_number}: ${result.message}`);
+            }
+          })
+          .catch(error => {
+            console.error(`❌ Error sending violation notice SMS for violation ${currentViolation.violation_number}:`, error.message);
+          });
+      }
+    }
+
+    // Note: SMS notifications are now automatic:
+    // - When status changes to 'issued': Violation notice SMS is sent
+    // - When status changes to 'paid': Payment confirmation SMS is sent
+    // - Overdue violations: Automated daily penalty reminders (handled by penaltyReminder.js script)
 
     // Log audit
     await logAudit(
