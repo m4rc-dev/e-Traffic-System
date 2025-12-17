@@ -377,6 +377,13 @@ router.post('/', [
     }
 
     // Create violation
+    console.log('🚗 Vehicle data received:', {
+      brand: req.body.vehicle_brand,
+      model: req.body.vehicle_model,
+      variant: req.body.vehicle_variant,
+      color: req.body.vehicle_color
+    });
+
     const violation = await firebaseService.createViolation({
       violation_number: violationNumber,
       enforcer_id: req.user.id,
