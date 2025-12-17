@@ -212,14 +212,8 @@ const Violations = () => {
       setFormErrors({});
       setSelectedStatus('');
 
-      // Check if we should send SMS (status was updated to 'paid' and sendSMS was checked)
-      if (variables.data.status === 'paid' && variables.data.sendSMS) {
-        const message = `e-Traffic: Payment Confirmed. Violation: ${variables.data.violationType}, Plate: ${variables.data.vehiclePlate}, Paid: PHP${variables.data.fineAmount}. Ref: ${variables.data.violationNumber}`;
-        sendSMSMutation.mutate({
-          id: variables.id,
-          data: { message }
-        });
-      }
+      // Payment confirmation SMS is now sent automatically by the backend
+      // when status changes to 'paid', so no need to handle it here
 
       toast.success('Violation updated successfully');
     },
@@ -390,30 +384,8 @@ const Violations = () => {
       notes
     };
 
-    // Add SMS flag and violation details if status is 'paid'
-    if (status === 'paid') {
-      violationData.sendSMS = sendSMS;
-      violationData.violationNumber = editingViolation.violation_number;
-      violationData.violatorName = editingViolation.violator_name;
-      violationData.vehiclePlate = editingViolation.vehicle_plate;
-      violationData.violationType = editingViolation.violation_type;
-      violationData.fineAmount = editingViolation.fine_amount;
-      violationData.enforcerName = editingViolation.enforcer_name;
-      violationData.badgeNumber = editingViolation.enforcer_badge;
-    }
-
-    // Add penalty reminder flag if status is 'issued' and checkbox is checked
-    if (status === 'issued' && sendPenaltyReminder) {
-      violationData.sendPenaltyReminder = sendPenaltyReminder;
-      violationData.violationNumber = editingViolation.violation_number;
-      violationData.violatorName = editingViolation.violator_name;
-      violationData.vehiclePlate = editingViolation.vehicle_plate;
-      violationData.violationType = editingViolation.violation_type;
-      violationData.fineAmount = editingViolation.fine_amount;
-      violationData.location = editingViolation.location;
-      violationData.dueDate = editingViolation.due_date;
-      violationData.violatorPhone = editingViolation.violator_phone;
-    }
+    // Note: SMS notifications are now sent automatically by the backend
+    // when status changes to 'paid' or 'issued', so we don't need to handle it here
 
     updateViolationMutation.mutate({
       id: editingViolation.id,
@@ -615,8 +587,16 @@ const Violations = () => {
               <span>${violation.vehicle_plate}</span>
             </div>
             <div class="info-item">
+              <span class="info-label">Brand:</span>
+              <span>${violation.vehicle_brand || 'N/A'}</span>
+            </div>
+            <div class="info-item">
               <span class="info-label">Model:</span>
               <span>${violation.vehicle_model || 'N/A'}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Variant:</span>
+              <span>${violation.vehicle_variant || 'N/A'}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Color:</span>
@@ -1143,7 +1123,12 @@ const Violations = () => {
                     <div>
                       <div className="text-sm font-medium text-gray-900">{violation.vehicle_plate}</div>
                       <div className="text-sm text-gray-500">
-                        {violation.vehicle_model} {violation.vehicle_color}
+                        {[
+                          violation.vehicle_brand,
+                          violation.vehicle_model,
+                          violation.vehicle_variant,
+                          violation.vehicle_color
+                        ].filter(Boolean).join(' ') || 'N/A'}
                       </div>
                     </div>
                   </td>
@@ -1295,9 +1280,10 @@ const Violations = () => {
                   name="status"
                   defaultValue={editingViolation.status}
                   required
+                  disabled={editingViolation.status === 'paid'}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className={`mobile-select w-full focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 ${formErrors.status ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-                    }`}
+                    } ${editingViolation.status === 'paid' ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''}`}
                 >
                   <option value="pending">Pending</option>
                   <option value="issued">Issued</option>
@@ -1305,6 +1291,14 @@ const Violations = () => {
                   <option value="disputed">Disputed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
+                {editingViolation.status === 'paid' && (
+                  <p className="mt-2 text-sm text-amber-600 flex items-center gap-1">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    This violation has been paid and its status cannot be changed
+                  </p>
+                )}
                 {formErrors.status && (
                   <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1315,50 +1309,42 @@ const Violations = () => {
                 )}
               </div>
 
-              {/* SMS Notification Option - Only show when status is 'paid' or being changed to 'paid' */}
+              {/* Payment Confirmation Info - Only show when status is 'paid' or being changed to 'paid' */}
               {(editingViolation.status === 'paid' || selectedStatus === 'paid') && editingViolation.violator_phone && (
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="sendSMS"
-                        name="sendSMS"
-                        type="checkbox"
-                        defaultChecked={editingViolation.status === 'paid'}
-                        className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
                     <div className="ml-3 text-sm">
-                      <label htmlFor="sendSMS" className="font-medium text-gray-700">
-                        Send SMS Notification
-                      </label>
-                      <p className="text-gray-500">
-                        Notify the violator that their violation has been marked as paid.
+                      <p className="font-medium text-green-800">
+                        Payment Confirmation SMS
+                      </p>
+                      <p className="text-green-700 mt-1">
+                        A payment confirmation SMS will be automatically sent to the violator when you update the status to "Paid".
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Penalty Reminder Option - Only show when status is 'issued' or being changed to 'issued' */}
+              {/* Violation Notice Info - Only show when status is 'issued' or being changed to 'issued' */}
               {(editingViolation.status === 'issued' || selectedStatus === 'issued') && editingViolation.violator_phone && (
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mt-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="sendPenaltyReminder"
-                        name="sendPenaltyReminder"
-                        type="checkbox"
-                        defaultChecked={false}
-                        className="focus:ring-yellow-500 h-4 w-4 text-yellow-600 border-gray-300 rounded"
-                      />
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                     </div>
                     <div className="ml-3 text-sm">
-                      <label htmlFor="sendPenaltyReminder" className="font-medium text-gray-700">
-                        Send Penalty Reminder
-                      </label>
-                      <p className="text-gray-500">
-                        Send a penalty reminder SMS to the violator for overdue payments.
+                      <p className="font-medium text-blue-800">
+                        Violation Notice SMS
+                      </p>
+                      <p className="text-blue-700 mt-1">
+                        A violation notice SMS will be automatically sent to the violator when you update the status to "Issued".
                       </p>
                     </div>
                   </div>
