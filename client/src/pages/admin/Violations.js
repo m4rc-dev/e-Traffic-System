@@ -1121,15 +1121,19 @@ const Violations = () => {
                   </td>
                   <td className="px-2 sm:px-3 py-4 whitespace-nowrap">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{violation.vehicle_plate}</div>
-                      <div className="text-sm text-gray-500">
-                        {[
-                          violation.vehicle_brand,
-                          violation.vehicle_model,
-                          violation.vehicle_variant,
-                          violation.vehicle_color
-                        ].filter(Boolean).join(' ') || 'N/A'}
-                      </div>
+                      <div className="text-sm font-semibold text-gray-900">{violation.vehicle_plate}</div>
+                      {(violation.vehicle_brand || violation.vehicle_model) && (
+                        <div className="text-sm text-gray-700 mt-1">
+                          {[violation.vehicle_brand, violation.vehicle_model].filter(Boolean).join(' ')}
+                        </div>
+                      )}
+                      {(violation.vehicle_variant || violation.vehicle_color) && (
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {violation.vehicle_variant && <span className="font-medium">{violation.vehicle_variant}</span>}
+                          {violation.vehicle_variant && violation.vehicle_color && <span className="mx-1">•</span>}
+                          {violation.vehicle_color}
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-2 sm:px-3 py-4 whitespace-nowrap text-sm text-gray-900">{violation.violation_type}</td>
